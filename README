@@ -1,6 +1,5 @@
-# Guber-Netes
-
-Guber-Netes is a lightweight, simulation-based distributed system that mimics core Kubernetes cluster management functionalities. Built with Go and Docker, it demonstrates key distributed computing concepts such as node addition, pod scheduling, health monitoring, and failure recovery. This project is designed for educational purposes and provides a simplified yet comprehensive platform to explore cluster management.
+# Kube-Sim
+Kube-Sim is a lightweight, simulation-based distributed system that mimics core Kubernetes cluster management functionalities. Built with Go and Docker, it demonstrates key distributed computing concepts such as node addition, pod scheduling, health monitoring, and failure recovery. This project is designed for educational purposes and provides a simplified yet comprehensive platform to explore cluster management.
 
 ## Features
 - **Node Addition**: Add nodes to the cluster with specified CPU cores, simulated using Docker containers.
