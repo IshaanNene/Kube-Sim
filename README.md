@@ -22,7 +22,7 @@ Kube-Sim is a lightweight, simulation-based distributed system that mimics core 
 
 ### Step 1: Clone the Repository
 ```bash
-git clone 
+git clone https://github.com/yourusername/Kube-Sim.git
 cd Kube-Sim
 ```
 
@@ -68,34 +68,13 @@ cd Kube-Sim
    go build -o cli
    ```
 
-### Step 5: Interact with the System
-Use the CLI to manage the cluster. Examples:
-- **Add a node**:
-  ```bash
-  ./cli add-node 4
-  ```
-  Output: `Node added successfully`
-- **Launch a pod**:
-  ```bash
-  ./cli launch-pod 2
-  ```
-  Output: `Pod launched successfully`
-- **List nodes**:
-  ```bash
-  ./cli list-nodes
-  ```
-  Sample output:
-  ```
-  Node <node-id>: CPU 2/4, Status: Healthy, Pods: [<pod-id>]
-  ```
-
 ## Usage Examples
-### Adding Nodes and Launching Pods
+### Basic Operations
 ```bash
 ./cli add-node 4          # Add a node with 4 CPU cores
 ./cli add-node 6          # Add a node with 6 CPU cores
 ./cli launch-pod 2        # Launch a pod requiring 2 CPU
-./cli list-nodes          # View cluster state
+./cli list-nodes          # List all nodes and their status
 ```
 
 ### Simulating Node Failure
@@ -111,22 +90,22 @@ Use the CLI to manage the cluster. Examples:
    ```bash
    ./cli list-nodes
    ```
-   The stopped node should appear as "Failed," and its pods (if any) may be rescheduled.
+   The stopped node should show as "Failed."
 
 ## Testing the System
-To verify full functionality, run these tests:
-
-### Node Addition
+### Node Addition Tests
 - **Add valid node**: `./cli add-node 4` → Expect "Node added successfully."
-- **Add invalid node**: `./cli add-node 0` → Expect error (e.g., "cpuCores must be a positive integer").
+- **Add invalid node**: `./cli add-node 0` → Expect error message.
 
-### Pod Scheduling
-- **Launch pod**: `./cli launch-pod 2` → Expect "Pod launched successfully," and check `./cli list-nodes` for updated CPU.
-- **Exceed capacity**: `./cli launch-pod 10` → Expect "Failed to launch pod" if total CPU is insufficient.
+### Pod Scheduling Tests
+- **Launch pod**: `./cli launch-pod 2` → Expect "Pod launched successfully."
+- **Exceed capacity**: `./cli launch-pod 10` → Expect "Failed to launch pod" if insufficient CPU.
 
-### Health Monitoring and Recovery
-- **Stop a node**: `docker stop <node-id>`, wait 20 seconds, then `./cli list-nodes` → Expect "Failed" status.
-- **Pod rescheduling**: Stop a node with pods, wait, and check if pods move to a healthy node with sufficient CPU.
+### Health Monitoring Tests
+1. Stop a node: `docker stop <node-id>`
+2. Wait 20 seconds
+3. Check status: `./cli list-nodes`
+4. Verify pod rescheduling on remaining healthy nodes.
 
 ## Notes
 - **Networking**: Uses `host.docker.internal` for simplicity. On Linux, you may need to adjust to `localhost` or use a Docker network.
@@ -135,8 +114,8 @@ To verify full functionality, run these tests:
 
 ## Troubleshooting
 - **API Server Fails to Start**: Ensure port 8080 is free and dependencies are installed (`go get github.com/google/uuid`).
-- **Node Containers Fail**: Check Docker logs (`docker logs <node-id>`) for errors, ensuring environment variables are set.
-- **CLI Errors**: Verify the API server is running and accessible at `http://localhost:8080`.
+- **Node Containers Fail**: Check Docker logs (`docker logs <node-id>`) for errors.
+- **CLI Errors**: Verify the API server is running at `http://localhost:8080`.
 
 ## Contributing
 Feel free to fork this repository, submit issues, or propose enhancements via pull requests. Suggestions for additional features (e.g., pod health checks, persistent storage) are welcome!
