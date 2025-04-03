@@ -71,10 +71,10 @@ cd Kube-Sim
 ## Usage Examples
 ### Basic Operations
 ```bash
-./cli add-node 4          # Add a node with 4 CPU cores
-./cli add-node 6          # Add a node with 6 CPU cores
-./cli launch-pod 2        # Launch a pod requiring 2 CPU
-./cli list-nodes          # List all nodes and their status
+./cli add-node 4        
+./cli add-node 6         
+./cli launch-pod 2      
+./cli list-nodes         
 ```
 
 ### Simulating Node Failure
