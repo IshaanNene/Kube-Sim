@@ -7,15 +7,16 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
 	"github.com/google/uuid"
 )
 
 type Node struct {
-	ID           string
-	CPUCores     int
-	AvailableCPU int
-	Pods         []string
-	HealthStatus string
+	ID            string
+	CPUCores      int
+	AvailableCPU  int
+	Pods          []string
+	HealthStatus  string
 	LastHeartbeat time.Time
 }
 
@@ -30,13 +31,28 @@ var (
 	pods      = make(map[string]*Pod)
 	nodesMu   sync.Mutex
 	podsMu    sync.Mutex
-	scheduler = "first-fit" 
+	scheduler = "first-fit"
 )
 
+func enableCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next(w, r)
+	}
+}
+
 func main() {
-	http.HandleFunc("/nodes", handleNodes)
-	http.HandleFunc("/pods", handlePods)
-	http.HandleFunc("/heartbeat", handleHeartbeat)
+	http.HandleFunc("/nodes", enableCORS(handleNodes))
+	http.HandleFunc("/pods", enableCORS(handlePods))
+	http.HandleFunc("/heartbeat", enableCORS(handleHeartbeat))
 
 	go healthMonitor()
 
@@ -73,11 +89,11 @@ func handleNodes(w http.ResponseWriter, r *http.Request) {
 
 		nodesMu.Lock()
 		nodes[nodeID] = &Node{
-			ID:           nodeID,
-			CPUCores:     req.CPUCores,
-			AvailableCPU: req.CPUCores,
-			Pods:         []string{},
-			HealthStatus: "Healthy",
+			ID:            nodeID,
+			CPUCores:      req.CPUCores,
+			AvailableCPU:  req.CPUCores,
+			Pods:          []string{},
+			HealthStatus:  "Healthy",
 			LastHeartbeat: time.Now(),
 		}
 		nodesMu.Unlock()
@@ -193,7 +209,7 @@ func healthMonitor() {
 				node.HealthStatus = "Failed"
 				podsToReschedule := node.Pods
 				node.Pods = []string{}
-				nodesMu.Unlock() 
+				nodesMu.Unlock()
 				for _, podID := range podsToReschedule {
 					pod := pods[podID]
 					newNodeID, err := schedulePod(pod.CPURequired)
