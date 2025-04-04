@@ -5,12 +5,15 @@ export interface Node {
   Pods: string[];
   HealthStatus: string;
   LastHeartbeat: string;
+  HeartbeatCount: number;
 }
 
 export interface Pod {
   ID: string;
   CPURequired: number;
   NodeID: string;
+  Status: string;
+  CreatedAt: string;
 }
 
 export interface AddNodeRequest {

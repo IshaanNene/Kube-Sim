@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os/exec"
 	"sync"
@@ -12,18 +13,21 @@ import (
 )
 
 type Node struct {
-	ID            string
-	CPUCores      int
-	AvailableCPU  int
-	Pods          []string
-	HealthStatus  string
-	LastHeartbeat time.Time
+	ID             string
+	CPUCores       int
+	AvailableCPU   int
+	Pods           []string
+	HealthStatus   string
+	LastHeartbeat  time.Time
+	HeartbeatCount int
 }
 
 type Pod struct {
 	ID          string
 	CPURequired int
 	NodeID      string
+	Status      string
+	CreatedAt   time.Time
 }
 
 var (
@@ -50,15 +54,18 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	log.Println("Starting Kube-Sim API Server...")
+
 	http.HandleFunc("/nodes", enableCORS(handleNodes))
 	http.HandleFunc("/pods", enableCORS(handlePods))
 	http.HandleFunc("/heartbeat", enableCORS(handleHeartbeat))
 
 	go healthMonitor()
 
-	fmt.Println("API Server listening on :8080")
+	log.Println("API Server listening on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
-		fmt.Println("Server failed:", err)
+		log.Fatal("Server failed:", err)
 	}
 }
 
@@ -89,15 +96,17 @@ func handleNodes(w http.ResponseWriter, r *http.Request) {
 
 		nodesMu.Lock()
 		nodes[nodeID] = &Node{
-			ID:            nodeID,
-			CPUCores:      req.CPUCores,
-			AvailableCPU:  req.CPUCores,
-			Pods:          []string{},
-			HealthStatus:  "Healthy",
-			LastHeartbeat: time.Now(),
+			ID:             nodeID,
+			CPUCores:       req.CPUCores,
+			AvailableCPU:   req.CPUCores,
+			Pods:           []string{},
+			HealthStatus:   "Healthy",
+			LastHeartbeat:  time.Now(),
+			HeartbeatCount: 0,
 		}
 		nodesMu.Unlock()
 
+		log.Printf("Node %s added with %d CPU cores\n", nodeID, req.CPUCores)
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprintf(w, "Node %s added with %d CPU cores\n", nodeID, req.CPUCores)
 
@@ -138,12 +147,13 @@ func handlePods(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update pod and node state
 	podsMu.Lock()
 	pods[podID] = &Pod{
 		ID:          podID,
 		CPURequired: req.CPURequired,
 		NodeID:      nodeID,
+		Status:      "Running",
+		CreatedAt:   time.Now(),
 	}
 	podsMu.Unlock()
 
@@ -152,6 +162,7 @@ func handlePods(w http.ResponseWriter, r *http.Request) {
 	nodes[nodeID].AvailableCPU -= req.CPURequired
 	nodesMu.Unlock()
 
+	log.Printf("Pod %s launched on node %s with %d CPU\n", podID, nodeID, req.CPURequired)
 	w.WriteHeader(http.StatusCreated)
 	fmt.Fprintf(w, "Pod %s launched on node %s with %d CPU\n", podID, nodeID, req.CPURequired)
 }
@@ -181,7 +192,11 @@ func handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	node.LastHeartbeat = time.Now()
+	node.HeartbeatCount++
 	node.HealthStatus = hb.Status
+	log.Printf("Heartbeat received from node %s (count: %d, status: %s)\n",
+		hb.NodeID[:8], node.HeartbeatCount, hb.Status)
+
 	if err := json.NewEncoder(w).Encode(map[string][]string{"pods": node.Pods}); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
@@ -191,42 +206,69 @@ func schedulePod(cpuRequired int) (string, error) {
 	nodesMu.Lock()
 	defer nodesMu.Unlock()
 
+	var selectedNode string
+	minAvailableCPU := int(^uint(0) >> 1) // Max int
+
+	// Implementing Best-Fit scheduling
 	for _, node := range nodes {
-		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
-			return node.ID, nil
+		if node.HealthStatus == "Healthy" &&
+			node.AvailableCPU >= cpuRequired &&
+			node.AvailableCPU < minAvailableCPU {
+			selectedNode = node.ID
+			minAvailableCPU = node.AvailableCPU
 		}
 	}
-	return "", fmt.Errorf("no available node with sufficient CPU")
+
+	if selectedNode == "" {
+		return "", fmt.Errorf("no available node with sufficient CPU")
+	}
+
+	log.Printf("Selected node %s for pod (CPU required: %d)\n", selectedNode[:8], cpuRequired)
+	return selectedNode, nil
 }
 
 func healthMonitor() {
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		nodesMu.Lock()
-		for _, node := range nodes {
-			if time.Since(node.LastHeartbeat) > 15*time.Second && node.HealthStatus != "Failed" {
-				fmt.Printf("Node %s marked as Failed\n", node.ID)
+		for nodeID, node := range nodes {
+			timeSinceLastHeartbeat := time.Since(node.LastHeartbeat)
+			if timeSinceLastHeartbeat > 15*time.Second && node.HealthStatus != "Failed" {
+				log.Printf("Node %s marked as Failed (Last heartbeat: %.1f seconds ago)\n",
+					nodeID[:8], timeSinceLastHeartbeat.Seconds())
 				node.HealthStatus = "Failed"
 				podsToReschedule := node.Pods
 				node.Pods = []string{}
+
+				// Release the lock before rescheduling
 				nodesMu.Unlock()
+
+				// Reschedule pods from failed node
 				for _, podID := range podsToReschedule {
+					podsMu.Lock()
 					pod := pods[podID]
+					pod.Status = "Rescheduling"
+					podsMu.Unlock()
+
 					newNodeID, err := schedulePod(pod.CPURequired)
 					if err != nil {
-						fmt.Printf("Failed to reschedule pod %s: %v\n", podID, err)
+						log.Printf("Failed to reschedule pod %s: %v\n", podID[:8], err)
 						continue
 					}
 
 					nodesMu.Lock()
 					podsMu.Lock()
 					pod.NodeID = newNodeID
+					pod.Status = "Running"
 					nodes[newNodeID].Pods = append(nodes[newNodeID].Pods, podID)
 					nodes[newNodeID].AvailableCPU -= pod.CPURequired
 					podsMu.Unlock()
 					nodesMu.Unlock()
-					fmt.Printf("Pod %s rescheduled to node %s\n", podID, newNodeID)
+
+					log.Printf("Pod %s rescheduled to node %s\n", podID[:8], newNodeID[:8])
 				}
+
+				// Reacquire the lock to continue iteration
 				nodesMu.Lock()
 			}
 		}
