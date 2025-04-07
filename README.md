@@ -68,6 +68,23 @@ cd Kube-Sim
    go build -o cli
    ```
 
+### Step 5: Run the Frontend
+1. Navigate to the `frontend` directory:
+   ```bash
+   cd ../frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the development server:
+   ```bash
+   npm start
+   ```
+   The frontend will start on `http://localhost:3000`. Keep this terminal running.
+
+   Note: Make sure the API server is running on port 8080 before starting the frontend.
+
 ## Usage Examples
 ### Basic Operations
 ```bash

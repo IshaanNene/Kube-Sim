@@ -28,6 +28,18 @@ const api = {
     }
   },
 
+  deleteNode: async (nodeId: string): Promise<void> => {
+    try {
+      await axios.delete(`${API_BASE_URL}/nodes/${nodeId}`);
+    } catch (error: any) {
+      console.error('Error deleting node:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data);
+      }
+      throw new Error('Failed to delete node. Is the API server running?');
+    }
+  },
+
   // Pod operations
   launchPod: async (request: AddPodRequest): Promise<string> => {
     try {

@@ -22,10 +22,264 @@ import {
   CardContent,
   LinearProgress,
   Stack,
+  IconButton,
+  Tooltip,
+  keyframes,
+  useTheme,
+  alpha,
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import { Experimental_CssVarsProvider as CssVarsProvider } from '@mui/material/styles';
 import { Node } from './types';
 import { api } from './services/api';
+
+// Define animations
+const pulse = keyframes`
+  0% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(1.5);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+`;
+
+const slideRight = keyframes`
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+`;
+
+const heartbeat = keyframes`
+  0% {
+    transform: translateX(0) translateY(0);
+  }
+  15% {
+    transform: translateX(2px) translateY(-5px);
+  }
+  30% {
+    transform: translateX(4px) translateY(0);
+  }
+  45% {
+    transform: translateX(6px) translateY(-8px);
+  }
+  60% {
+    transform: translateX(8px) translateY(0);
+  }
+  75% {
+    transform: translateX(10px) translateY(-2px);
+  }
+  100% {
+    transform: translateX(12px) translateY(0);
+  }
+`;
+
+const ecgAnimation = keyframes`
+  0% {
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dashoffset: -1000;
+  }
+`;
+
+// Add these new interfaces
+interface HeartbeatPoint {
+  timestamp: number;
+  value: number;
+}
+
+// ECG Line Component
+const ECGLine: React.FC<{ 
+  isHealthy: boolean;
+  lastHeartbeat: string;
+  heartbeatCount: number;
+}> = ({ isHealthy, lastHeartbeat, heartbeatCount }) => {
+  const theme = useTheme();
+  const [points, setPoints] = useState<HeartbeatPoint[]>([]);
+  const [prevHeartbeatCount, setPrevHeartbeatCount] = useState(heartbeatCount);
+  const maxPoints = 100; // Increased for smoother animation
+  const timeWindow = 10000; // 10 seconds window
+
+  useEffect(() => {
+    // When heartbeat count increases, add a new peak
+    if (heartbeatCount > prevHeartbeatCount) {
+      setPoints(prev => {
+        const now = Date.now();
+        // Create a sequence of points for a single heartbeat
+        const heartbeatPoints: HeartbeatPoint[] = [
+          { timestamp: now, value: 0 },     // Start at baseline
+          { timestamp: now + 50, value: 0.1 }, // Small bump up (P wave)
+          { timestamp: now + 100, value: 0 },  // Back to baseline
+          { timestamp: now + 150, value: 1 },  // Sharp spike up (QRS complex)
+          { timestamp: now + 200, value: -0.5 }, // Sharp drop (S wave)
+          { timestamp: now + 250, value: 0 },  // Back to baseline
+          { timestamp: now + 300, value: 0.3 }, // Small bump (T wave)
+          { timestamp: now + 350, value: 0 },  // Return to baseline
+        ];
+
+        const newPoints = [...prev, ...heartbeatPoints];
+        // Remove points older than timeWindow
+        return newPoints
+          .filter(p => now - p.timestamp < timeWindow)
+          .slice(-maxPoints);
+      });
+    }
+    setPrevHeartbeatCount(heartbeatCount);
+
+    // Cleanup old points periodically
+    const interval = setInterval(() => {
+      setPoints(prev => {
+        const now = Date.now();
+        return prev.filter(p => now - p.timestamp < timeWindow);
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [heartbeatCount, prevHeartbeatCount]);
+
+  const lastHeartbeatTime = new Date(lastHeartbeat).getTime();
+  const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
+  const isInactive = timeSinceLastHeartbeat > 20000; // Consider inactive after 20 seconds
+
+  const generatePath = (points: HeartbeatPoint[]): string => {
+    if (points.length === 0) return '';
+    
+    // Create a smooth path with control points
+    return points.reduce((path: string, point: HeartbeatPoint, index: number) => {
+      const x = (index / (points.length - 1)) * 300;
+      // Scale the value to fit the SVG height (50 is center, ±30 for amplitude)
+      const y = 50 - (point.value * 30);
+      
+      if (index === 0) {
+        return `M ${x},${y}`;
+      }
+      
+      // Use quadratic curves for smoother lines
+      const prevX = ((index - 1) / (points.length - 1)) * 300;
+      const prevY = 50 - (points[index - 1].value * 30);
+      const cpX = (x + prevX) / 2;
+      
+      return `${path} Q ${cpX},${prevY} ${x},${y}`;
+    }, '');
+  };
+
+  return (
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center',
+      position: 'relative',
+      width: '300px',
+      height: '80px',
+      opacity: isInactive ? 0.3 : 1,
+      backgroundColor: '#000',
+      borderRadius: '8px',
+      p: 1,
+      border: '1px solid',
+      borderColor: (theme) => isInactive ? alpha(theme.palette.error.main, 0.3) : alpha(theme.palette.success.main, 0.3),
+      boxShadow: (theme) => `0 0 10px ${isInactive ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.success.main, 0.2)}`,
+      overflow: 'hidden', // Add this to prevent overflow
+    }}>
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 300 100"
+        preserveAspectRatio="none"
+        style={{
+          filter: !isInactive ? 'drop-shadow(0 0 3px #4caf50)' : 'none',
+        }}
+      >
+        {/* Background grid lines */}
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path
+            d="M 20 0 L 0 0 0 20"
+            fill="none"
+            stroke="#1a1a1a"
+            strokeWidth="0.5"
+            opacity="0.5"
+          />
+        </pattern>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+        
+        {/* Baseline */}
+        <line
+          x1="0"
+          y1="50"
+          x2="300"
+          y2="50"
+          stroke="#1a1a1a"
+          strokeWidth="1"
+          opacity="0.5"
+        />
+
+        {/* Real-time ECG line */}
+        {points.length > 0 && (
+          <>
+            <path
+              d={generatePath(points)}
+              fill="none"
+              stroke={isInactive ? '#ff5252' : '#4caf50'}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* Glow effect */}
+            <path
+              d={generatePath(points)}
+              fill="none"
+              stroke={isInactive ? '#ff5252' : '#4caf50'}
+              strokeWidth="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                filter: 'blur(4px)',
+                opacity: 0.5,
+              }}
+            />
+          </>
+        )}
+      </svg>
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          position: 'absolute',
+          top: 4,
+          right: 8,
+          color: (theme) => isInactive ? theme.palette.error.main : '#4caf50',
+          fontFamily: 'monospace',
+          fontSize: '0.75rem',
+          fontWeight: 'bold',
+          textShadow: !isInactive ? '0 0 10px #4caf50' : '0 0 10px #ff5252',
+        }}
+      >
+        {isInactive ? 'INACTIVE' : 'ACTIVE'}
+      </Typography>
+      <Typography 
+        variant="body2" 
+        sx={{ 
+          position: 'absolute',
+          bottom: 4,
+          right: 8,
+          color: '#666',
+          fontFamily: 'monospace',
+          fontSize: '0.75rem',
+        }}
+      >
+        {Math.round(timeSinceLastHeartbeat / 1000)}s ago
+      </Typography>
+    </Box>
+  );
+};
 
 function App() {
   const [nodes, setNodes] = useState<Record<string, Node>>({});
@@ -35,6 +289,7 @@ function App() {
   const [cpuRequired, setCpuRequired] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingNode, setDeletingNode] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchNodes = async () => {
@@ -79,6 +334,19 @@ function App() {
     }
   };
 
+  const handleDeleteNode = async (nodeId: string) => {
+    try {
+      setDeletingNode(nodeId);
+      setError(null);
+      await api.deleteNode(nodeId);
+    } catch (err) {
+      console.error('Error deleting node:', err);
+      setError('Failed to delete node. Please ensure the API server is running.');
+    } finally {
+      setDeletingNode(null);
+    }
+  };
+
   const getHealthStatusColor = (status: string) => {
     switch (status) {
       case 'Healthy':
@@ -117,206 +385,428 @@ function App() {
 
   return (
     <CssVarsProvider>
-      <Container maxWidth="lg">
-        <Box sx={{ my: 4 }}>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Kube-Sim Dashboard
-          </Typography>
+      <Box sx={{
+        minHeight: '100vh',
+        background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.2)}, ${alpha(theme.palette.secondary.dark, 0.2)})`,
+        backdropFilter: 'blur(10px)',
+      }}>
+        <Container maxWidth="lg">
+          <Box sx={{ 
+            py: 4,
+            position: 'relative',
+          }}>
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              gutterBottom
+              sx={{
+                fontWeight: 'bold',
+                background: (theme) => `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                backgroundClip: 'text',
+                textFillColor: 'transparent',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 4,
+                textAlign: 'center',
+                textShadow: '0 0 20px rgba(0,0,0,0.1)',
+              }}
+            >
+              Kube-Sim Dashboard
+            </Typography>
 
-          {/* Cluster Overview Cards */}
-          <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
-            <Card sx={{ flex: 1 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>Cluster Health</Typography>
-                <Typography variant="h4" color="primary">
-                  {stats.healthyNodes}/{stats.totalNodes}
-                </Typography>
-                <Typography variant="body2">Healthy Nodes</Typography>
-              </CardContent>
-            </Card>
-            <Card sx={{ flex: 1 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>CPU Usage</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <Box sx={{ width: '100%', mr: 1 }}>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={stats.cpuUsagePercentage} 
-                    />
+            {/* Cluster Overview Cards */}
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 4 }}>
+              <Card sx={{ 
+                flex: 1,
+                background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s ease',
+                border: '1px solid',
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`,
+                }
+              }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>Cluster Health</Typography>
+                  <Typography variant="h4" color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {stats.healthyNodes}/{stats.totalNodes}
+                  </Typography>
+                  <Typography variant="body2">Healthy Nodes</Typography>
+                </CardContent>
+              </Card>
+              <Card sx={{ 
+                flex: 1,
+                background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s ease',
+                border: '1px solid',
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`,
+                }
+              }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>CPU Usage</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ width: '100%', mr: 1, position: 'relative' }}>
+                      <LinearProgress 
+                        variant="determinate" 
+                        value={stats.cpuUsagePercentage}
+                        sx={{
+                          height: 10,
+                          borderRadius: 5,
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 5,
+                          },
+                          '&::after': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: (theme) => `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)})`,
+                            animation: `${slideRight} 2s linear infinite`,
+                          }
+                        }}
+                      />
+                    </Box>
+                    <Typography variant="body2" sx={{ minWidth: '45px' }}>
+                      {stats.cpuUsagePercentage}%
+                    </Typography>
                   </Box>
                   <Typography variant="body2">
-                    {stats.cpuUsagePercentage}%
+                    {stats.usedCPU}/{stats.totalCPU} CPU cores used
                   </Typography>
-                </Box>
-                <Typography variant="body2">
-                  {stats.usedCPU}/{stats.totalCPU} CPU cores used
-                </Typography>
-              </CardContent>
-            </Card>
-            <Card sx={{ flex: 1 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>Running Pods</Typography>
-                <Typography variant="h4" color="primary">
-                  {stats.totalPods}
-                </Typography>
-                <Typography variant="body2">Total Pods</Typography>
-              </CardContent>
-            </Card>
-          </Stack>
+                </CardContent>
+              </Card>
+              <Card sx={{ 
+                flex: 1,
+                background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s ease',
+                border: '1px solid',
+                borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`,
+                }
+              }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>Running Pods</Typography>
+                  <Typography variant="h4" color="primary">
+                    {stats.totalPods}
+                  </Typography>
+                  <Typography variant="body2">Total Pods</Typography>
+                </CardContent>
+              </Card>
+            </Stack>
 
-          <Box sx={{ mb: 3 }}>
-            <Button
-              variant="contained"
-              onClick={() => setOpenNodeDialog(true)}
-              sx={{ mr: 2 }}
-            >
-              Add Node
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => setOpenPodDialog(true)}
-              disabled={stats.totalNodes === 0}
-            >
-              Launch Pod
-            </Button>
+            <Box sx={{ mb: 3 }}>
+              <Button
+                variant="contained"
+                onClick={() => setOpenNodeDialog(true)}
+                sx={{ 
+                  mr: 2,
+                  borderRadius: '20px',
+                  textTransform: 'none',
+                  px: 3,
+                }}
+                startIcon={<AddCircleOutlineIcon />}
+              >
+                Add Node
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => setOpenPodDialog(true)}
+                disabled={stats.totalNodes === 0}
+                sx={{ 
+                  borderRadius: '20px',
+                  textTransform: 'none',
+                  px: 3,
+                }}
+                startIcon={<RocketLaunchIcon />}
+              >
+                Launch Pod
+              </Button>
+            </Box>
+
+            {error && (
+              <Paper 
+                sx={{ 
+                  p: 2, 
+                  mb: 2, 
+                  bgcolor: 'error.light',
+                  borderRadius: '12px',
+                  animation: `${pulse} 2s ease-in-out`,
+                }}
+              >
+                <Typography color="error">
+                  {error}
+                </Typography>
+              </Paper>
+            )}
+
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : stats.totalNodes === 0 ? (
+              <Paper sx={{ 
+                p: 4, 
+                textAlign: 'center',
+                borderRadius: '12px',
+                background: (theme) => alpha(theme.palette.background.paper, 0.8),
+                backdropFilter: 'blur(10px)',
+              }}>
+                <Typography variant="h6" color="text.secondary">
+                  No nodes available. Click "Add Node" to create your first node.
+                </Typography>
+              </Paper>
+            ) : (
+              <TableContainer 
+                component={Paper} 
+                sx={{ 
+                  borderRadius: '12px',
+                  background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid',
+                  borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                  '& th': {
+                    fontWeight: 'bold',
+                    background: (theme) => alpha(theme.palette.background.paper, 0.5),
+                  },
+                  '& td': {
+                    borderColor: (theme) => alpha(theme.palette.divider, 0.1),
+                  },
+                }}
+              >
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Node ID</TableCell>
+                      <TableCell>Health Status</TableCell>
+                      <TableCell>CPU Usage</TableCell>
+                      <TableCell>Heartbeat</TableCell>
+                      <TableCell>Pods</TableCell>
+                      <TableCell>Last Heartbeat</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {Object.entries(nodes).map(([id, node]) => (
+                      <TableRow 
+                        key={id}
+                        sx={{
+                          backgroundColor: node.HealthStatus === 'Failed' ? 'error.light' : 'inherit',
+                          '&:hover': { 
+                            backgroundColor: (theme) => alpha(theme.palette.action.hover, 0.1),
+                            backdropFilter: 'blur(10px)',
+                          }
+                        }}
+                      >
+                        <TableCell>{id.slice(0, 8)}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={node.HealthStatus}
+                            color={getHealthStatusColor(node.HealthStatus)}
+                            size="small"
+                            sx={{ borderRadius: '8px' }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Box sx={{ width: '100%', mr: 1 }}>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100}
+                                sx={{
+                                  height: 8,
+                                  borderRadius: 4,
+                                  '& .MuiLinearProgress-bar': {
+                                    borderRadius: 4,
+                                  }
+                                }}
+                              />
+                            </Box>
+                            <Typography variant="body2" sx={{ minWidth: '70px' }}>
+                              {node.CPUCores - node.AvailableCPU}/{node.CPUCores}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 2,
+                            p: 1,
+                            borderRadius: '8px',
+                          }}>
+                            <ECGLine 
+                              isHealthy={node.HealthStatus === 'Healthy'} 
+                              lastHeartbeat={node.LastHeartbeat}
+                              heartbeatCount={node.HeartbeatCount || 0}
+                            />
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                color: (theme) => node.HealthStatus === 'Healthy' 
+                                  ? '#4caf50'
+                                  : theme.palette.text.disabled,
+                                fontFamily: 'monospace',
+                                fontWeight: 'bold',
+                                fontSize: '1.2rem',
+                                textShadow: (theme) => node.HealthStatus === 'Healthy' 
+                                  ? '0 0 10px #4caf50' 
+                                  : 'none',
+                              }}
+                            >
+                              {node.HeartbeatCount || 0}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={`${node.Pods.length} pods`}
+                            color="primary"
+                            size="small"
+                            sx={{ borderRadius: '8px' }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {new Date(node.LastHeartbeat).toLocaleTimeString()}
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title={node.Pods.length > 0 ? "Cannot delete node with running pods" : "Delete Node"}>
+                            <span>
+                              <IconButton 
+                                onClick={() => handleDeleteNode(id)}
+                                disabled={deletingNode === id || node.Pods.length > 0}
+                                color="error"
+                                sx={{
+                                  '&:not(:disabled):hover': {
+                                    backgroundColor: (theme) => alpha(theme.palette.error.main, 0.1),
+                                  }
+                                }}
+                              >
+                                {deletingNode === id ? (
+                                  <CircularProgress size={24} />
+                                ) : (
+                                  <DeleteIcon />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </Box>
 
-          {error && (
-            <Paper sx={{ p: 2, mb: 2, bgcolor: 'error.light' }}>
-              <Typography color="error">
-                {error}
-              </Typography>
-            </Paper>
-          )}
+          {/* Add Node Dialog */}
+          <Dialog 
+            open={openNodeDialog} 
+            onClose={() => setOpenNodeDialog(false)}
+            PaperProps={{
+              sx: {
+                borderRadius: '16px',
+                backdropFilter: 'blur(10px)',
+              }
+            }}
+          >
+            <DialogTitle>Add New Node</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="CPU Cores"
+                type="number"
+                fullWidth
+                value={cpuCores}
+                onChange={(e) => setCpuCores(e.target.value)}
+                inputProps={{ min: 1 }}
+                helperText="Enter the number of CPU cores (minimum 1)"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                  }
+                }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button 
+                onClick={() => setOpenNodeDialog(false)}
+                sx={{ borderRadius: '20px', textTransform: 'none' }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAddNode} 
+                variant="contained"
+                disabled={!cpuCores || parseInt(cpuCores) < 1}
+                sx={{ borderRadius: '20px', textTransform: 'none' }}
+              >
+                Add Node
+              </Button>
+            </DialogActions>
+          </Dialog>
 
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : stats.totalNodes === 0 ? (
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
-              <Typography variant="h6" color="text.secondary">
-                No nodes available. Click "Add Node" to create your first node.
-              </Typography>
-            </Paper>
-          ) : (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Node ID</TableCell>
-                    <TableCell>Health Status</TableCell>
-                    <TableCell>CPU Usage</TableCell>
-                    <TableCell>Heartbeats</TableCell>
-                    <TableCell>Pods</TableCell>
-                    <TableCell>Last Heartbeat</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Object.entries(nodes).map(([id, node]) => (
-                    <TableRow 
-                      key={id}
-                      sx={{
-                        backgroundColor: node.HealthStatus === 'Failed' ? 'error.light' : 'inherit',
-                        '&:hover': { backgroundColor: 'action.hover' }
-                      }}
-                    >
-                      <TableCell>{id.slice(0, 8)}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={node.HealthStatus}
-                          color={getHealthStatusColor(node.HealthStatus)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Box sx={{ width: '100%', mr: 1 }}>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100} 
-                            />
-                          </Box>
-                          <Typography variant="body2">
-                            {node.CPUCores - node.AvailableCPU}/{node.CPUCores}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{node.HeartbeatCount || 0}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={`${node.Pods.length} pods`}
-                          color="primary"
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {new Date(node.LastHeartbeat).toLocaleTimeString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-        </Box>
-
-        {/* Add Node Dialog */}
-        <Dialog open={openNodeDialog} onClose={() => setOpenNodeDialog(false)}>
-          <DialogTitle>Add New Node</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="CPU Cores"
-              type="number"
-              fullWidth
-              value={cpuCores}
-              onChange={(e) => setCpuCores(e.target.value)}
-              inputProps={{ min: 1 }}
-              helperText="Enter the number of CPU cores (minimum 1)"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenNodeDialog(false)}>Cancel</Button>
-            <Button 
-              onClick={handleAddNode} 
-              variant="contained"
-              disabled={!cpuCores || parseInt(cpuCores) < 1}
-            >
-              Add
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Launch Pod Dialog */}
-        <Dialog open={openPodDialog} onClose={() => setOpenPodDialog(false)}>
-          <DialogTitle>Launch New Pod</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              margin="dense"
-              label="CPU Required"
-              type="number"
-              fullWidth
-              value={cpuRequired}
-              onChange={(e) => setCpuRequired(e.target.value)}
-              inputProps={{ min: 1 }}
-              helperText="Enter the required CPU cores (minimum 1)"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenPodDialog(false)}>Cancel</Button>
-            <Button 
-              onClick={handleLaunchPod} 
-              variant="contained"
-              disabled={!cpuRequired || parseInt(cpuRequired) < 1}
-            >
-              Launch
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Container>
+          {/* Launch Pod Dialog */}
+          <Dialog 
+            open={openPodDialog} 
+            onClose={() => setOpenPodDialog(false)}
+            PaperProps={{
+              sx: {
+                borderRadius: '16px',
+                backdropFilter: 'blur(10px)',
+              }
+            }}
+          >
+            <DialogTitle>Launch New Pod</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                margin="dense"
+                label="CPU Required"
+                type="number"
+                fullWidth
+                value={cpuRequired}
+                onChange={(e) => setCpuRequired(e.target.value)}
+                inputProps={{ min: 1 }}
+                helperText="Enter the required CPU cores (minimum 1)"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                  }
+                }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button 
+                onClick={() => setOpenPodDialog(false)}
+                sx={{ borderRadius: '20px', textTransform: 'none' }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleLaunchPod} 
+                variant="contained"
+                disabled={!cpuRequired || parseInt(cpuRequired) < 1}
+                sx={{ borderRadius: '20px', textTransform: 'none' }}
+                startIcon={<RocketLaunchIcon />}
+              >
+                Launch Pod
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </Container>
+      </Box>
     </CssVarsProvider>
   );
 }
