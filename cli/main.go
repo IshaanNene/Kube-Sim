@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -43,6 +44,49 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("Node added successfully")
+
+	case "stop-node":
+		if len(os.Args) != 3 {
+			fmt.Println("Usage: cli stop-node <nodeID>")
+			os.Exit(1)
+		}
+		nodeID := os.Args[2]
+		resp, err := client.Post(fmt.Sprintf("http://localhost:8080/nodes/%s/stop", nodeID), "application/json", nil)
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			fmt.Printf("Failed to stop node: %s\n", string(body))
+			os.Exit(1)
+		}
+		fmt.Println("Node stopped successfully")
+
+	case "delete-node":
+		if len(os.Args) != 3 {
+			fmt.Println("Usage: cli delete-node <nodeID>")
+			os.Exit(1)
+		}
+		nodeID := os.Args[2]
+		req, err := http.NewRequest("DELETE", fmt.Sprintf("http://localhost:8080/nodes/%s", nodeID), nil)
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			fmt.Printf("Failed to delete node: %s\n", string(body))
+			os.Exit(1)
+		}
+		fmt.Println("Node deleted successfully")
 
 	case "launch-pod":
 		if len(os.Args) != 3 {
@@ -101,6 +145,8 @@ func printUsage() {
 	fmt.Println("Usage: cli <command> [args]")
 	fmt.Println("Commands:")
 	fmt.Println("  add-node <cpuCores>     Add a new node with specified CPU cores")
+	fmt.Println("  stop-node <nodeID>      Stop a node")
+	fmt.Println("  delete-node <nodeID>    Delete a stopped node")
 	fmt.Println("  launch-pod <cpuRequired> Launch a pod with specified CPU requirements")
 	fmt.Println("  list-nodes              List all nodes with their health status")
 }

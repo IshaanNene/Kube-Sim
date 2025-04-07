@@ -28,15 +28,42 @@ const api = {
     }
   },
 
+  stopNode: async (nodeId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/nodes/${nodeId}/stop`);
+    } catch (error: any) {
+      console.error('Error stopping node:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data);
+      }
+      throw new Error('Failed to stop node. Is the API server running?');
+    }
+  },
+
   deleteNode: async (nodeId: string): Promise<void> => {
     try {
-      await axios.delete(`${API_BASE_URL}/nodes/${nodeId}`);
+      const response = await axios.delete(`${API_BASE_URL}/nodes/${nodeId}`);
+      if (response.status !== 200) {
+        throw new Error(response.data?.message || 'Failed to delete node');
+      }
     } catch (error: any) {
       console.error('Error deleting node:', error);
       if (error.response?.data) {
         throw new Error(error.response.data);
       }
-      throw new Error('Failed to delete node. Is the API server running?');
+      throw error;
+    }
+  },
+
+  restartNode: async (nodeId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/nodes/${nodeId}/restart`);
+    } catch (error: any) {
+      console.error('Error restarting node:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data);
+      }
+      throw new Error('Failed to restart node. Is the API server running?');
     }
   },
 
@@ -51,6 +78,18 @@ const api = {
         throw new Error(error.response.data);
       }
       throw new Error('Failed to launch pod. Are there healthy nodes with sufficient CPU?');
+    }
+  },
+
+  deletePod: async (podId: string): Promise<void> => {
+    try {
+      await axios.delete(`${API_BASE_URL}/pods/${podId}`);
+    } catch (error: any) {
+      console.error('Error deleting pod:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data);
+      }
+      throw new Error('Failed to delete pod. Is the API server running?');
     }
   }
 };

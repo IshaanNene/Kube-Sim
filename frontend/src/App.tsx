@@ -31,6 +31,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import StopIcon from '@mui/icons-material/Stop';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { Experimental_CssVarsProvider as CssVarsProvider } from '@mui/material/styles';
 import { Node } from './types';
 import { api } from './services/api';
@@ -51,45 +53,45 @@ const pulse = keyframes`
   }
 `;
 
-const slideRight = keyframes`
+const slideIn = keyframes`
   from {
     transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+`;
+
+const slideOut = keyframes`
+  from {
+    transform: translateX(0);
   }
   to {
     transform: translateX(100%);
   }
 `;
 
-const heartbeat = keyframes`
-  0% {
-    transform: translateX(0) translateY(0);
+// Add new animation for background
+const floatingGlow = keyframes`
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.3;
   }
-  15% {
-    transform: translateX(2px) translateY(-5px);
-  }
-  30% {
-    transform: translateX(4px) translateY(0);
-  }
-  45% {
-    transform: translateX(6px) translateY(-8px);
-  }
-  60% {
-    transform: translateX(8px) translateY(0);
-  }
-  75% {
-    transform: translateX(10px) translateY(-2px);
-  }
-  100% {
-    transform: translateX(12px) translateY(0);
+  50% {
+    transform: translateY(-20px) scale(1.1);
+    opacity: 0.5;
   }
 `;
 
-const ecgAnimation = keyframes`
+const gradientShift = keyframes`
   0% {
-    stroke-dashoffset: 1000;
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
   }
   100% {
-    stroke-dashoffset: -1000;
+    background-position: 0% 50%;
   }
 `;
 
@@ -108,8 +110,8 @@ const ECGLine: React.FC<{
   const theme = useTheme();
   const [points, setPoints] = useState<HeartbeatPoint[]>([]);
   const [prevHeartbeatCount, setPrevHeartbeatCount] = useState(heartbeatCount);
-  const maxPoints = 100; // Increased for smoother animation
-  const timeWindow = 10000; // 10 seconds window
+  const maxPoints = 100;
+  const timeWindow = 10000;
 
   useEffect(() => {
     // When heartbeat count increases, add a new peak
@@ -182,13 +184,13 @@ const ECGLine: React.FC<{
       width: '300px',
       height: '80px',
       opacity: isInactive ? 0.3 : 1,
-      backgroundColor: '#000',
+      backgroundColor: theme.palette.common.black,
       borderRadius: '8px',
       p: 1,
       border: '1px solid',
-      borderColor: (theme) => isInactive ? alpha(theme.palette.error.main, 0.3) : alpha(theme.palette.success.main, 0.3),
-      boxShadow: (theme) => `0 0 10px ${isInactive ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.success.main, 0.2)}`,
-      overflow: 'hidden', // Add this to prevent overflow
+      borderColor: isInactive ? alpha(theme.palette.error.main, 0.3) : alpha(theme.palette.success.main, 0.3),
+      boxShadow: `0 0 10px ${isInactive ? alpha(theme.palette.error.main, 0.2) : alpha(theme.palette.success.main, 0.2)}`,
+      overflow: 'hidden',
     }}>
       <svg
         width="100%"
@@ -289,7 +291,10 @@ function App() {
   const [cpuRequired, setCpuRequired] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stoppingNode, setStoppingNode] = useState<string | null>(null);
   const [deletingNode, setDeletingNode] = useState<string | null>(null);
+  const [restartingNode, setRestartingNode] = useState<string | null>(null);
+  const [deletingPod, setDeletingPod] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchNodes = async () => {
@@ -334,16 +339,65 @@ function App() {
     }
   };
 
+  const handleStopNode = async (nodeId: string) => {
+    try {
+      setStoppingNode(nodeId);
+      setError(null);
+      await api.stopNode(nodeId);
+    } catch (err) {
+      console.error('Error stopping node:', err);
+      setError('Failed to stop node. Please ensure the API server is running.');
+    } finally {
+      setStoppingNode(null);
+    }
+  };
+
+  const handleRestartNode = async (nodeId: string) => {
+    try {
+      setRestartingNode(nodeId);
+      setError(null);
+      await api.restartNode(nodeId);
+    } catch (err) {
+      console.error('Error restarting node:', err);
+      setError('Failed to restart node. Please ensure the API server is running.');
+    } finally {
+      setRestartingNode(null);
+    }
+  };
+
   const handleDeleteNode = async (nodeId: string) => {
     try {
       setDeletingNode(nodeId);
       setError(null);
+
+      // Immediately remove from frontend state
+      setNodes(prevNodes => {
+        const newNodes = { ...prevNodes };
+        delete newNodes[nodeId];
+        return newNodes;
+      });
+
+      // Then try to delete from backend
       await api.deleteNode(nodeId);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error deleting node:', err);
-      setError('Failed to delete node. Please ensure the API server is running.');
+      // Even if the API call fails, we keep the node removed from the frontend
+      // since it's in a Failed state anyway
     } finally {
       setDeletingNode(null);
+    }
+  };
+
+  const handleDeletePod = async (podId: string) => {
+    try {
+      setDeletingPod(podId);
+      setError(null);
+      await api.deletePod(podId);
+    } catch (err) {
+      console.error('Error deleting pod:', err);
+      setError('Failed to delete pod. Please ensure the API server is running.');
+    } finally {
+      setDeletingPod(null);
     }
   };
 
@@ -387,10 +441,125 @@ function App() {
     <CssVarsProvider>
       <Box sx={{
         minHeight: '100vh',
-        background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.2)}, ${alpha(theme.palette.secondary.dark, 0.2)})`,
-        backdropFilter: 'blur(10px)',
+        position: 'relative',
+        background: (theme) => `linear-gradient(135deg, 
+          ${alpha(theme.palette.primary.dark, 0.2)},
+          ${alpha(theme.palette.common.black, 0.9)},
+          ${alpha(theme.palette.secondary.dark, 0.2)}
+        )`,
+        backgroundSize: '400% 400%',
+        animation: `${gradientShift} 15s ease infinite`,
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: (theme) => `
+            radial-gradient(circle at 20% 20%, ${alpha(theme.palette.primary.main, 0.4)}, transparent 40%),
+            radial-gradient(circle at 80% 20%, ${alpha(theme.palette.secondary.main, 0.4)}, transparent 40%),
+            radial-gradient(circle at 50% 50%, ${alpha(theme.palette.primary.main, 0.2)}, transparent 60%),
+            radial-gradient(circle at 80% 80%, ${alpha(theme.palette.secondary.main, 0.4)}, transparent 40%),
+            radial-gradient(circle at 20% 80%, ${alpha(theme.palette.primary.main, 0.4)}, transparent 40%)
+          `,
+          opacity: 0.7,
+          zIndex: 0,
+        },
+        '&::after': {
+          content: '""',
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          width: '200vw',
+          height: '200vh',
+          transform: 'translate(-50%, -50%)',
+          background: (theme) => `
+            repeating-linear-gradient(
+              0deg,
+              transparent,
+              transparent 4px,
+              ${alpha(theme.palette.primary.main, 0.05)} 4px,
+              ${alpha(theme.palette.primary.main, 0.05)} 8px
+            ),
+            repeating-linear-gradient(
+              90deg,
+              transparent,
+              transparent 4px,
+              ${alpha(theme.palette.secondary.main, 0.05)} 4px,
+              ${alpha(theme.palette.secondary.main, 0.05)} 8px
+            )
+          `,
+          animation: `${floatingGlow} 10s ease-in-out infinite`,
+          zIndex: 0,
+          opacity: 0.3,
+          pointerEvents: 'none',
+        }
       }}>
-        <Container maxWidth="lg">
+        {/* Floating orbs with more prominent colors */}
+        <Box sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: 'hidden',
+          zIndex: 0,
+          pointerEvents: 'none',
+          '& > div': {
+            position: 'absolute',
+            borderRadius: '50%',
+            filter: 'blur(80px)',
+            animation: `${floatingGlow} 10s ease-in-out infinite`,
+          }
+        }}>
+          <Box sx={{
+            top: '10%',
+            left: '10%',
+            width: '400px',
+            height: '400px',
+            background: (theme) => `radial-gradient(circle at center, 
+              ${alpha(theme.palette.primary.main, 0.4)},
+              ${alpha(theme.palette.primary.dark, 0.1)}
+            )`,
+            animationDelay: '0s',
+          }} />
+          <Box sx={{
+            top: '60%',
+            right: '10%',
+            width: '350px',
+            height: '350px',
+            background: (theme) => `radial-gradient(circle at center, 
+              ${alpha(theme.palette.secondary.main, 0.4)},
+              ${alpha(theme.palette.secondary.dark, 0.1)}
+            )`,
+            animationDelay: '-2s',
+          }} />
+          <Box sx={{
+            top: '40%',
+            left: '60%',
+            width: '300px',
+            height: '300px',
+            background: (theme) => `radial-gradient(circle at center, 
+              ${alpha(theme.palette.primary.light, 0.3)},
+              ${alpha(theme.palette.primary.dark, 0.1)}
+            )`,
+            animationDelay: '-4s',
+          }} />
+        </Box>
+
+        <Container maxWidth="lg" sx={{ 
+          position: 'relative', 
+          zIndex: 2,
+          '& .MuiPaper-root': {
+            background: (theme) => `linear-gradient(135deg, 
+              ${alpha(theme.palette.background.paper, 0.8)}, 
+              ${alpha(theme.palette.background.paper, 0.6)}
+            )`,
+            backdropFilter: 'blur(10px)',
+          }
+        }}>
           <Box sx={{ 
             py: 4,
             position: 'relative',
@@ -469,7 +638,7 @@ function App() {
                             right: 0,
                             bottom: 0,
                             background: (theme) => `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.2)})`,
-                            animation: `${slideRight} 2s linear infinite`,
+                            animation: `${slideOut} 2s linear infinite`,
                           }
                         }}
                       />
@@ -598,110 +767,187 @@ function App() {
                   </TableHead>
                   <TableBody>
                     {Object.entries(nodes).map(([id, node]) => (
-                      <TableRow 
-                        key={id}
-                        sx={{
-                          backgroundColor: node.HealthStatus === 'Failed' ? 'error.light' : 'inherit',
-                          '&:hover': { 
-                            backgroundColor: (theme) => alpha(theme.palette.action.hover, 0.1),
-                            backdropFilter: 'blur(10px)',
-                          }
-                        }}
-                      >
-                        <TableCell>{id.slice(0, 8)}</TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={node.HealthStatus}
-                            color={getHealthStatusColor(node.HealthStatus)}
-                            size="small"
-                            sx={{ borderRadius: '8px' }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Box sx={{ width: '100%', mr: 1 }}>
-                              <LinearProgress 
-                                variant="determinate" 
-                                value={((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100}
-                                sx={{
-                                  height: 8,
-                                  borderRadius: 4,
-                                  '& .MuiLinearProgress-bar': {
-                                    borderRadius: 4,
-                                  }
-                                }}
-                              />
-                            </Box>
-                            <Typography variant="body2" sx={{ minWidth: '70px' }}>
-                              {node.CPUCores - node.AvailableCPU}/{node.CPUCores}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 2,
-                            p: 1,
-                            borderRadius: '8px',
-                          }}>
-                            <ECGLine 
-                              isHealthy={node.HealthStatus === 'Healthy'} 
-                              lastHeartbeat={node.LastHeartbeat}
-                              heartbeatCount={node.HeartbeatCount || 0}
+                      <React.Fragment key={id}>
+                        <TableRow 
+                          sx={{
+                            backgroundColor: node.HealthStatus === 'Failed' ? 'error.light' : 'inherit',
+                            '&:hover': { 
+                              backgroundColor: (theme) => alpha(theme.palette.action.hover, 0.1),
+                              backdropFilter: 'blur(10px)',
+                            }
+                          }}
+                        >
+                          <TableCell>{id.slice(0, 8)}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={node.HealthStatus}
+                              color={getHealthStatusColor(node.HealthStatus)}
+                              size="small"
+                              sx={{ borderRadius: '8px' }}
                             />
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                color: (theme) => node.HealthStatus === 'Healthy' 
-                                  ? '#4caf50'
-                                  : theme.palette.text.disabled,
-                                fontFamily: 'monospace',
-                                fontWeight: 'bold',
-                                fontSize: '1.2rem',
-                                textShadow: (theme) => node.HealthStatus === 'Healthy' 
-                                  ? '0 0 10px #4caf50' 
-                                  : 'none',
-                              }}
-                            >
-                              {node.HeartbeatCount || 0}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip 
-                            label={`${node.Pods.length} pods`}
-                            color="primary"
-                            size="small"
-                            sx={{ borderRadius: '8px' }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          {new Date(node.LastHeartbeat).toLocaleTimeString()}
-                        </TableCell>
-                        <TableCell>
-                          <Tooltip title={node.Pods.length > 0 ? "Cannot delete node with running pods" : "Delete Node"}>
-                            <span>
-                              <IconButton 
-                                onClick={() => handleDeleteNode(id)}
-                                disabled={deletingNode === id || node.Pods.length > 0}
-                                color="error"
-                                sx={{
-                                  '&:not(:disabled):hover': {
-                                    backgroundColor: (theme) => alpha(theme.palette.error.main, 0.1),
-                                  }
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <Box sx={{ width: '100%', mr: 1 }}>
+                                <LinearProgress 
+                                  variant="determinate" 
+                                  value={((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100}
+                                  sx={{
+                                    height: 8,
+                                    borderRadius: 4,
+                                    '& .MuiLinearProgress-bar': {
+                                      borderRadius: 4,
+                                    }
+                                  }}
+                                />
+                              </Box>
+                              <Typography variant="body2" sx={{ minWidth: '70px' }}>
+                                {node.CPUCores - node.AvailableCPU}/{node.CPUCores}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 2,
+                              p: 1,
+                              borderRadius: '8px',
+                            }}>
+                              <ECGLine 
+                                isHealthy={node.HealthStatus === 'Healthy'} 
+                                lastHeartbeat={node.LastHeartbeat}
+                                heartbeatCount={node.HeartbeatCount || 0}
+                              />
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: (theme) => node.HealthStatus === 'Healthy' 
+                                    ? '#4caf50'
+                                    : theme.palette.text.disabled,
+                                  fontFamily: 'monospace',
+                                  fontWeight: 'bold',
+                                  fontSize: '1.2rem',
+                                  textShadow: (theme) => node.HealthStatus === 'Healthy' 
+                                    ? '0 0 10px #4caf50' 
+                                    : 'none',
                                 }}
                               >
-                                {deletingNode === id ? (
-                                  <CircularProgress size={24} />
-                                ) : (
-                                  <DeleteIcon />
-                                )}
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        </TableCell>
-                      </TableRow>
+                                {node.HeartbeatCount || 0}
+                              </Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={`${node.Pods.length} pods`}
+                              color="primary"
+                              size="small"
+                              sx={{ borderRadius: '8px' }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            {new Date(node.LastHeartbeat).toLocaleTimeString()}
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1}>
+                              <Tooltip title={node.Pods.length > 0 ? "Cannot stop node with running pods" : "Stop Node"}>
+                                <span>
+                                  <IconButton 
+                                    onClick={() => handleStopNode(id)}
+                                    disabled={stoppingNode === id || node.Pods.length > 0 || node.HealthStatus === 'Failed'}
+                                    color="warning"
+                                    sx={{
+                                      '&:not(:disabled):hover': {
+                                        backgroundColor: (theme) => alpha(theme.palette.warning.main, 0.1),
+                                      }
+                                    }}
+                                  >
+                                    {stoppingNode === id ? (
+                                      <CircularProgress size={24} />
+                                    ) : (
+                                      <StopIcon />
+                                    )}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip title={node.Pods.length > 0 ? "Cannot restart node with running pods" : "Restart Node"}>
+                                <span>
+                                  <IconButton 
+                                    onClick={() => handleRestartNode(id)}
+                                    disabled={restartingNode === id || node.Pods.length > 0}
+                                    color="info"
+                                    sx={{
+                                      '&:not(:disabled):hover': {
+                                        backgroundColor: (theme) => alpha(theme.palette.info.main, 0.1),
+                                      }
+                                    }}
+                                  >
+                                    {restartingNode === id ? (
+                                      <CircularProgress size={24} />
+                                    ) : (
+                                      <RestartAltIcon />
+                                    )}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip title={
+                                node.Pods.length > 0 
+                                  ? "Cannot delete node with running pods" 
+                                  : node.HealthStatus !== 'Failed' 
+                                    ? "Stop the node before deleting" 
+                                    : "Delete Node"
+                              }>
+                                <span>
+                                  <IconButton 
+                                    onClick={() => handleDeleteNode(id)}
+                                    disabled={
+                                      deletingNode === id || 
+                                      node.Pods.length > 0 || 
+                                      node.HealthStatus !== 'Failed'
+                                    }
+                                    color="error"
+                                    sx={{
+                                      '&:not(:disabled):hover': {
+                                        backgroundColor: (theme) => alpha(theme.palette.error.main, 0.1),
+                                      }
+                                    }}
+                                  >
+                                    {deletingNode === id ? (
+                                      <CircularProgress size={24} />
+                                    ) : (
+                                      <DeleteIcon />
+                                    )}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                        {node.Pods.length > 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} sx={{ py: 0 }}>
+                              <Box sx={{ pl: 4, py: 2 }}>
+                                <Typography variant="subtitle2" gutterBottom>
+                                  Running Pods:
+                                </Typography>
+                                <Stack direction="row" spacing={1} flexWrap="wrap">
+                                  {node.Pods.map((podId) => (
+                                    <Chip
+                                      key={podId}
+                                      label={podId.slice(0, 8)}
+                                      onDelete={() => handleDeletePod(podId)}
+                                      color="primary"
+                                      size="small"
+                                      sx={{ borderRadius: '8px' }}
+                                      disabled={deletingPod === podId}
+                                    />
+                                  ))}
+                                </Stack>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
