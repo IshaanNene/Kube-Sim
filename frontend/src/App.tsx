@@ -39,17 +39,13 @@ import { api } from './services/api';
 
 // Define animations
 const pulse = keyframes`
-  0% {
-    transform: scaleY(1);
-    opacity: 1;
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
   }
   50% {
-    transform: scaleY(1.5);
+    transform: scale(1.1);
     opacity: 0.8;
-  }
-  100% {
-    transform: scaleY(1);
-    opacity: 1;
   }
 `;
 
@@ -92,6 +88,28 @@ const gradientShift = keyframes`
   }
   100% {
     background-position: 0% 50%;
+  }
+`;
+
+// Add new animations
+const float = keyframes`
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(5deg);
+  }
+`;
+
+// Add new animation for purple orbs
+const purpleGlow = keyframes`
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(20px, -20px) scale(1.2);
+    opacity: 0.6;
   }
 `;
 
@@ -442,62 +460,10 @@ function App() {
       <Box sx={{
         minHeight: '100vh',
         position: 'relative',
-        background: (theme) => `linear-gradient(135deg, 
-          ${alpha(theme.palette.primary.dark, 0.2)},
-          ${alpha(theme.palette.common.black, 0.9)},
-          ${alpha(theme.palette.secondary.dark, 0.2)}
-        )`,
-        backgroundSize: '400% 400%',
-        animation: `${gradientShift} 15s ease infinite`,
+        background: '#f8f9fa',
         overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: (theme) => `
-            radial-gradient(circle at 20% 20%, ${alpha(theme.palette.primary.main, 0.4)}, transparent 40%),
-            radial-gradient(circle at 80% 20%, ${alpha(theme.palette.secondary.main, 0.4)}, transparent 40%),
-            radial-gradient(circle at 50% 50%, ${alpha(theme.palette.primary.main, 0.2)}, transparent 60%),
-            radial-gradient(circle at 80% 80%, ${alpha(theme.palette.secondary.main, 0.4)}, transparent 40%),
-            radial-gradient(circle at 20% 80%, ${alpha(theme.palette.primary.main, 0.4)}, transparent 40%)
-          `,
-          opacity: 0.7,
-          zIndex: 0,
-        },
-        '&::after': {
-          content: '""',
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          width: '200vw',
-          height: '200vh',
-          transform: 'translate(-50%, -50%)',
-          background: (theme) => `
-            repeating-linear-gradient(
-              0deg,
-              transparent,
-              transparent 4px,
-              ${alpha(theme.palette.primary.main, 0.05)} 4px,
-              ${alpha(theme.palette.primary.main, 0.05)} 8px
-            ),
-            repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 4px,
-              ${alpha(theme.palette.secondary.main, 0.05)} 4px,
-              ${alpha(theme.palette.secondary.main, 0.05)} 8px
-            )
-          `,
-          animation: `${floatingGlow} 10s ease-in-out infinite`,
-          zIndex: 0,
-          opacity: 0.3,
-          pointerEvents: 'none',
-        }
       }}>
-        {/* Floating orbs with more prominent colors */}
+        {/* Background Elements */}
         <Box sx={{
           position: 'fixed',
           top: 0,
@@ -506,58 +472,170 @@ function App() {
           bottom: 0,
           overflow: 'hidden',
           zIndex: 0,
-          pointerEvents: 'none',
-          '& > div': {
-            position: 'absolute',
-            borderRadius: '50%',
-            filter: 'blur(80px)',
-            animation: `${floatingGlow} 10s ease-in-out infinite`,
-          }
         }}>
-          <Box sx={{
-            top: '10%',
-            left: '10%',
-            width: '400px',
-            height: '400px',
-            background: (theme) => `radial-gradient(circle at center, 
-              ${alpha(theme.palette.primary.main, 0.4)},
-              ${alpha(theme.palette.primary.dark, 0.1)}
-            )`,
-            animationDelay: '0s',
-          }} />
-          <Box sx={{
-            top: '60%',
-            right: '10%',
-            width: '350px',
-            height: '350px',
-            background: (theme) => `radial-gradient(circle at center, 
-              ${alpha(theme.palette.secondary.main, 0.4)},
-              ${alpha(theme.palette.secondary.dark, 0.1)}
-            )`,
-            animationDelay: '-2s',
-          }} />
-          <Box sx={{
-            top: '40%',
-            left: '60%',
-            width: '300px',
-            height: '300px',
-            background: (theme) => `radial-gradient(circle at center, 
-              ${alpha(theme.palette.primary.light, 0.3)},
-              ${alpha(theme.palette.primary.dark, 0.1)}
-            )`,
-            animationDelay: '-4s',
-          }} />
+          {/* Blue Orbs */}
+          {[...Array(3)].map((_, i) => (
+            <Box
+              key={`blue-orb-${i}`}
+              sx={{
+                position: 'absolute',
+                width: ['600px', '700px', '800px'][i],
+                height: ['600px', '700px', '800px'][i],
+                background: [
+                  `radial-gradient(circle at center, 
+                    rgba(59, 130, 246, 0.4),
+                    rgba(37, 99, 235, 0.3),
+                    rgba(29, 78, 216, 0.2)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(96, 165, 250, 0.4),
+                    rgba(59, 130, 246, 0.3),
+                    rgba(37, 99, 235, 0.2)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(147, 197, 253, 0.4),
+                    rgba(96, 165, 250, 0.3),
+                    rgba(59, 130, 246, 0.2)
+                  )`
+                ][i],
+                borderRadius: '50%',
+                filter: 'blur(100px)',
+                animation: `${purpleGlow} ${15 + i * 2}s ease-in-out infinite`,
+                animationDelay: `${-i * 3}s`,
+                opacity: 0.5,
+                top: ['20%', '60%', '40%'][i],
+                left: ['20%', '60%', '40%'][i],
+              }}
+            />
+          ))}
+
+          {/* Purple Orbs */}
+          {[...Array(3)].map((_, i) => (
+            <Box
+              key={`purple-orb-${i}`}
+              sx={{
+                position: 'absolute',
+                width: ['500px', '600px', '700px'][i],
+                height: ['500px', '600px', '700px'][i],
+                background: [
+                  `radial-gradient(circle at center, 
+                    rgba(216, 180, 254, 0.4),
+                    rgba(192, 132, 252, 0.3),
+                    rgba(168, 85, 247, 0.2)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(192, 132, 252, 0.4),
+                    rgba(168, 85, 247, 0.3),
+                    rgba(147, 51, 234, 0.2)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(233, 213, 255, 0.4),
+                    rgba(216, 180, 254, 0.3),
+                    rgba(192, 132, 252, 0.2)
+                  )`
+                ][i],
+                borderRadius: '50%',
+                filter: 'blur(100px)',
+                animation: `${purpleGlow} ${15 + i * 2}s ease-in-out infinite`,
+                animationDelay: `${-i * 3}s`,
+                opacity: 0.5,
+                top: ['30%', '70%', '50%'][i],
+                left: ['70%', '30%', '50%'][i],
+              }}
+            />
+          ))}
+
+          {/* Floating Elements with mixed theme */}
+          {[...Array(8)].map((_, i) => (
+            <Box
+              key={`float-${i}`}
+              sx={{
+                position: 'absolute',
+                width: ['150px', '180px', '200px', '220px'][i % 4],
+                height: ['150px', '180px', '200px', '220px'][i % 4],
+                background: [
+                  `radial-gradient(circle at center, 
+                    rgba(147, 197, 253, 0.5),
+                    rgba(96, 165, 250, 0.4),
+                    rgba(59, 130, 246, 0.3)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(216, 180, 254, 0.5),
+                    rgba(192, 132, 252, 0.4),
+                    rgba(168, 85, 247, 0.3)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(96, 165, 250, 0.5),
+                    rgba(59, 130, 246, 0.4),
+                    rgba(37, 99, 235, 0.3)
+                  )`,
+                  `radial-gradient(circle at center, 
+                    rgba(192, 132, 252, 0.5),
+                    rgba(168, 85, 247, 0.4),
+                    rgba(147, 51, 234, 0.3)
+                  )`
+                ][i % 4],
+                borderRadius: '50%',
+                filter: 'blur(60px)',
+                animation: `${float} ${12 + i * 2}s ease-in-out infinite`,
+                animationDelay: `${-i * 1.5}s`,
+                opacity: 0.4,
+                top: ['20%', '35%', '50%', '65%', '80%', '25%', '70%', '40%'][i],
+                left: ['25%', '40%', '55%', '70%', '30%', '65%', '45%', '80%'][i],
+              }}
+            />
+          ))}
+
+          {/* Glowing Lines with mixed colors */}
+          {[...Array(6)].map((_, i) => (
+            <Box
+              key={`line-${i}`}
+              sx={{
+                position: 'absolute',
+                width: '3px',
+                height: ['300px', '400px', '500px', '400px', '350px', '450px'][i],
+                background: [
+                  `linear-gradient(to bottom, transparent, rgba(96, 165, 250, 0.6), rgba(59, 130, 246, 0.8), rgba(37, 99, 235, 0.6), transparent)`,
+                  `linear-gradient(to bottom, transparent, rgba(192, 132, 252, 0.6), rgba(168, 85, 247, 0.8), rgba(147, 51, 234, 0.6), transparent)`,
+                  `linear-gradient(to bottom, transparent, rgba(147, 197, 253, 0.6), rgba(96, 165, 250, 0.8), rgba(59, 130, 246, 0.6), transparent)`,
+                  `linear-gradient(to bottom, transparent, rgba(216, 180, 254, 0.6), rgba(192, 132, 252, 0.8), rgba(168, 85, 247, 0.6), transparent)`,
+                  `linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.6), rgba(37, 99, 235, 0.8), rgba(29, 78, 216, 0.6), transparent)`,
+                  `linear-gradient(to bottom, transparent, rgba(168, 85, 247, 0.6), rgba(147, 51, 234, 0.8), rgba(126, 34, 206, 0.6), transparent)`
+                ][i],
+                filter: 'blur(12px)',
+                animation: `${pulse} ${10 + i * 2}s ease-in-out infinite`,
+                animationDelay: `${-i * 1.5}s`,
+                top: ['10%', '20%', '15%', '25%', '30%', '5%'][i],
+                left: ['20%', '40%', '60%', '80%', '30%', '70%'][i],
+                transform: `rotate(${[15, -20, 25, -15, 20, -25][i]}deg)`,
+              }}
+            />
+          ))}
+
         </Box>
 
+        {/* Content Container with light theme glassmorphism */}
         <Container maxWidth="lg" sx={{ 
           position: 'relative', 
           zIndex: 2,
           '& .MuiPaper-root': {
-            background: (theme) => `linear-gradient(135deg, 
-              ${alpha(theme.palette.background.paper, 0.8)}, 
-              ${alpha(theme.palette.background.paper, 0.6)}
-            )`,
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 8px 32px rgba(147, 197, 253, 0.15)',
+            '&:hover': {
+              boxShadow: '0 8px 32px rgba(147, 197, 253, 0.25)',
+              borderImage: 'linear-gradient(45deg, rgba(96, 165, 250, 0.4), rgba(168, 85, 247, 0.4)) 1',
+            }
+          },
+          '& .MuiButton-contained': {
+            background: 'linear-gradient(45deg, rgba(96, 165, 250, 0.9), rgba(168, 85, 247, 0.9))',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 12px rgba(147, 197, 253, 0.2)',
+            '&:hover': {
+              background: 'linear-gradient(45deg, rgba(96, 165, 250, 1), rgba(168, 85, 247, 1))',
+              boxShadow: '0 4px 12px rgba(147, 197, 253, 0.4)',
+            }
           }
         }}>
           <Box sx={{ 
@@ -580,50 +658,70 @@ function App() {
                 textShadow: '0 0 20px rgba(0,0,0,0.1)',
               }}
             >
-              Kube-Sim Dashboard
-            </Typography>
+            Kube-Sim Dashboard
+          </Typography>
 
-            {/* Cluster Overview Cards */}
+          {/* Cluster Overview Cards */}
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 4 }}>
               <Card sx={{ 
                 flex: 1,
-                background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                background: 'rgba(255, 255, 255, 0.85) !important',
                 backdropFilter: 'blur(10px)',
                 transition: 'all 0.3s ease',
-                border: '1px solid',
-                borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                border: '2px solid rgba(96, 165, 250, 0.3) !important',
+                borderRadius: '16px',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`,
+                  boxShadow: '0 8px 24px rgba(96, 165, 250, 0.2) !important',
+                  border: '2px solid rgba(96, 165, 250, 0.5) !important',
+                },
+                '& .MuiTypography-h6': {
+                  color: '#1a1a1a',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '2px solid rgba(96, 165, 250, 0.4)',
+                  display: 'inline-block',
+                  marginBottom: '16px',
+                  background: 'rgba(96, 165, 250, 0.1)',
                 }
               }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Cluster Health</Typography>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Cluster Health</Typography>
                   <Typography variant="h4" color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    {stats.healthyNodes}/{stats.totalNodes}
-                  </Typography>
-                  <Typography variant="body2">Healthy Nodes</Typography>
-                </CardContent>
-              </Card>
+                  {stats.healthyNodes}/{stats.totalNodes}
+                </Typography>
+                <Typography variant="body2">Healthy Nodes</Typography>
+              </CardContent>
+            </Card>
               <Card sx={{ 
                 flex: 1,
-                background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                background: 'rgba(255, 255, 255, 0.85) !important',
                 backdropFilter: 'blur(10px)',
                 transition: 'all 0.3s ease',
-                border: '1px solid',
-                borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                border: '2px solid rgba(168, 85, 247, 0.3) !important',
+                borderRadius: '16px',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`,
+                  boxShadow: '0 8px 24px rgba(168, 85, 247, 0.2) !important',
+                  border: '2px solid rgba(168, 85, 247, 0.5) !important',
+                },
+                '& .MuiTypography-h6': {
+                  color: '#1a1a1a',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '2px solid rgba(168, 85, 247, 0.4)',
+                  display: 'inline-block',
+                  marginBottom: '16px',
+                  background: 'rgba(168, 85, 247, 0.1)',
                 }
               }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>CPU Usage</Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>CPU Usage</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <Box sx={{ width: '100%', mr: 1, position: 'relative' }}>
-                      <LinearProgress 
-                        variant="determinate" 
-                        value={stats.cpuUsagePercentage}
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={stats.cpuUsagePercentage} 
                         sx={{
                           height: 10,
                           borderRadius: 5,
@@ -641,43 +739,53 @@ function App() {
                             animation: `${slideOut} 2s linear infinite`,
                           }
                         }}
-                      />
-                    </Box>
-                    <Typography variant="body2" sx={{ minWidth: '45px' }}>
-                      {stats.cpuUsagePercentage}%
-                    </Typography>
+                    />
                   </Box>
-                  <Typography variant="body2">
-                    {stats.usedCPU}/{stats.totalCPU} CPU cores used
+                    <Typography variant="body2" sx={{ minWidth: '45px' }}>
+                    {stats.cpuUsagePercentage}%
                   </Typography>
-                </CardContent>
-              </Card>
+                </Box>
+                <Typography variant="body2">
+                  {stats.usedCPU}/{stats.totalCPU} CPU cores used
+                </Typography>
+              </CardContent>
+            </Card>
               <Card sx={{ 
                 flex: 1,
-                background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                background: 'rgba(255, 255, 255, 0.85) !important',
                 backdropFilter: 'blur(10px)',
                 transition: 'all 0.3s ease',
-                border: '1px solid',
-                borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                border: '2px solid rgba(147, 197, 253, 0.3) !important',
+                borderRadius: '16px',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: (theme) => `0 8px 24px ${alpha(theme.palette.primary.main, 0.2)}`,
+                  boxShadow: '0 8px 24px rgba(147, 197, 253, 0.2) !important',
+                  border: '2px solid rgba(147, 197, 253, 0.5) !important',
+                },
+                '& .MuiTypography-h6': {
+                  color: '#1a1a1a',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '2px solid rgba(147, 197, 253, 0.4)',
+                  display: 'inline-block',
+                  marginBottom: '16px',
+                  background: 'rgba(147, 197, 253, 0.1)',
                 }
               }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Running Pods</Typography>
-                  <Typography variant="h4" color="primary">
-                    {stats.totalPods}
-                  </Typography>
-                  <Typography variant="body2">Total Pods</Typography>
-                </CardContent>
-              </Card>
-            </Stack>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>Running Pods</Typography>
+                <Typography variant="h4" color="primary">
+                  {stats.totalPods}
+                </Typography>
+                <Typography variant="body2">Total Pods</Typography>
+              </CardContent>
+            </Card>
+          </Stack>
 
-            <Box sx={{ mb: 3 }}>
-              <Button
-                variant="contained"
-                onClick={() => setOpenNodeDialog(true)}
+          <Box sx={{ mb: 3 }}>
+            <Button
+              variant="contained"
+              onClick={() => setOpenNodeDialog(true)}
                 sx={{ 
                   mr: 2,
                   borderRadius: '20px',
@@ -685,25 +793,25 @@ function App() {
                   px: 3,
                 }}
                 startIcon={<AddCircleOutlineIcon />}
-              >
-                Add Node
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() => setOpenPodDialog(true)}
-                disabled={stats.totalNodes === 0}
+            >
+              Add Node
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => setOpenPodDialog(true)}
+              disabled={stats.totalNodes === 0}
                 sx={{ 
                   borderRadius: '20px',
                   textTransform: 'none',
                   px: 3,
                 }}
                 startIcon={<RocketLaunchIcon />}
-              >
-                Launch Pod
-              </Button>
-            </Box>
+            >
+              Launch Pod
+            </Button>
+          </Box>
 
-            {error && (
+          {error && (
               <Paper 
                 sx={{ 
                   p: 2, 
@@ -713,85 +821,121 @@ function App() {
                   animation: `${pulse} 2s ease-in-out`,
                 }}
               >
-                <Typography color="error">
-                  {error}
-                </Typography>
-              </Paper>
-            )}
+              <Typography color="error">
+                {error}
+              </Typography>
+            </Paper>
+          )}
 
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : stats.totalNodes === 0 ? (
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : stats.totalNodes === 0 ? (
               <Paper sx={{ 
                 p: 4, 
                 textAlign: 'center',
                 borderRadius: '12px',
                 background: (theme) => alpha(theme.palette.background.paper, 0.8),
                 backdropFilter: 'blur(10px)',
+                '& .MuiTypography-root': {
+                  color: 'white',
+                }
               }}>
-                <Typography variant="h6" color="text.secondary">
-                  No nodes available. Click "Add Node" to create your first node.
-                </Typography>
-              </Paper>
-            ) : (
+                <Typography variant="h6">
+                No nodes available. Click "Add Node" to create your first node.
+              </Typography>
+            </Paper>
+          ) : (
               <TableContainer 
                 component={Paper} 
                 sx={{ 
-                  borderRadius: '12px',
-                  background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.85) !important',
                   backdropFilter: 'blur(10px)',
-                  border: '1px solid',
-                  borderColor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                  border: '2px solid rgba(96, 165, 250, 0.3) !important',
+                  overflow: 'hidden',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 8px 24px rgba(96, 165, 250, 0.2) !important',
+                    border: '2px solid rgba(96, 165, 250, 0.5) !important',
+                  },
                   '& th': {
                     fontWeight: 'bold',
-                    background: (theme) => alpha(theme.palette.background.paper, 0.5),
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    color: '#1a1a1a',
+                    borderBottom: '2px solid rgba(96, 165, 250, 0.2)',
+                    '& .MuiTypography-root': {
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '2px solid rgba(96, 165, 250, 0.4)',
+                      display: 'inline-block',
+                      background: 'rgba(96, 165, 250, 0.1)',
+                    }
                   },
                   '& td': {
-                    borderColor: (theme) => alpha(theme.palette.divider, 0.1),
+                    borderColor: 'rgba(96, 165, 250, 0.1)',
+                    color: '#1a1a1a',
                   },
+                  '& tr:hover': {
+                    backgroundColor: 'rgba(96, 165, 250, 0.05) !important',
+                  },
+                  '& .MuiChip-root': {
+                    borderRadius: '8px',
+                    border: '1px solid rgba(147, 197, 253, 0.4)',
+                    background: 'rgba(147, 197, 253, 0.1)',
+                  },
+                  '& .MuiButton-root': {
+                    borderRadius: '12px',
+                  },
+                  '& .MuiIconButton-root': {
+                    borderRadius: '10px',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'scale(1.1)',
+                    }
+                  }
                 }}
               >
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Node ID</TableCell>
-                      <TableCell>Health Status</TableCell>
-                      <TableCell>CPU Usage</TableCell>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Node ID</TableCell>
+                    <TableCell>Health Status</TableCell>
+                    <TableCell>CPU Usage</TableCell>
                       <TableCell>Heartbeat</TableCell>
-                      <TableCell>Pods</TableCell>
-                      <TableCell>Last Heartbeat</TableCell>
+                    <TableCell>Pods</TableCell>
+                    <TableCell>Last Heartbeat</TableCell>
                       <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {Object.entries(nodes).map(([id, node]) => (
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Object.entries(nodes).map(([id, node]) => (
                       <React.Fragment key={id}>
-                        <TableRow 
-                          sx={{
-                            backgroundColor: node.HealthStatus === 'Failed' ? 'error.light' : 'inherit',
+                    <TableRow 
+                      sx={{
+                        backgroundColor: node.HealthStatus === 'Failed' ? 'error.light' : 'inherit',
                             '&:hover': { 
                               backgroundColor: (theme) => alpha(theme.palette.action.hover, 0.1),
                               backdropFilter: 'blur(10px)',
                             }
-                          }}
-                        >
-                          <TableCell>{id.slice(0, 8)}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={node.HealthStatus}
-                              color={getHealthStatusColor(node.HealthStatus)}
-                              size="small"
+                      }}
+                    >
+                      <TableCell>{id.slice(0, 8)}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={node.HealthStatus}
+                          color={getHealthStatusColor(node.HealthStatus)}
+                          size="small"
                               sx={{ borderRadius: '8px' }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Box sx={{ width: '100%', mr: 1 }}>
-                                <LinearProgress 
-                                  variant="determinate" 
-                                  value={((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box sx={{ width: '100%', mr: 1 }}>
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100} 
                                   sx={{
                                     height: 8,
                                     borderRadius: 4,
@@ -799,13 +943,13 @@ function App() {
                                       borderRadius: 4,
                                     }
                                   }}
-                                />
-                              </Box>
+                            />
+                          </Box>
                               <Typography variant="body2" sx={{ minWidth: '70px' }}>
-                                {node.CPUCores - node.AvailableCPU}/{node.CPUCores}
-                              </Typography>
-                            </Box>
-                          </TableCell>
+                            {node.CPUCores - node.AvailableCPU}/{node.CPUCores}
+                          </Typography>
+                        </Box>
+                      </TableCell>
                           <TableCell>
                             <Box sx={{ 
                               display: 'flex', 
@@ -837,16 +981,16 @@ function App() {
                               </Typography>
                             </Box>
                           </TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={`${node.Pods.length} pods`}
-                              color="primary"
-                              size="small"
+                      <TableCell>
+                        <Chip 
+                          label={`${node.Pods.length} pods`}
+                          color="primary"
+                          size="small"
                               sx={{ borderRadius: '8px' }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {new Date(node.LastHeartbeat).toLocaleTimeString()}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {new Date(node.LastHeartbeat).toLocaleTimeString()}
                           </TableCell>
                           <TableCell>
                             <Stack direction="row" spacing={1}>
@@ -944,66 +1088,113 @@ function App() {
                                   ))}
                                 </Stack>
                               </Box>
-                            </TableCell>
-                          </TableRow>
+                      </TableCell>
+                    </TableRow>
                         )}
                       </React.Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
-          </Box>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
 
-          {/* Add Node Dialog */}
+        {/* Add Node Dialog */}
           <Dialog 
             open={openNodeDialog} 
             onClose={() => setOpenNodeDialog(false)}
             PaperProps={{
               sx: {
-                borderRadius: '16px',
+                borderRadius: '20px',
                 backdropFilter: 'blur(10px)',
+                background: 'rgba(255, 255, 255, 0.95)',
+                border: '2px solid rgba(168, 85, 247, 0.3)',
+                boxShadow: '0 8px 32px rgba(168, 85, 247, 0.15)',
+                '& .MuiDialogTitle-root': {
+                  color: '#1a1a1a',
+                  borderBottom: '2px solid rgba(168, 85, 247, 0.1)',
+                  '& .MuiTypography-root': {
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '2px solid rgba(168, 85, 247, 0.4)',
+                    display: 'inline-block',
+                    background: 'rgba(168, 85, 247, 0.1)',
+                  }
+                },
+                '& .MuiDialogContent-root': {
+                  color: '#1a1a1a',
+                  padding: '24px',
+                },
+                '& .MuiInputLabel-root': {
+                  color: '#1a1a1a',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(147, 197, 253, 0.4)',
+                  background: 'rgba(147, 197, 253, 0.1)',
+                },
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '12px',
+                  color: '#1a1a1a',
+                  '& fieldset': {
+                    borderColor: 'rgba(168, 85, 247, 0.3)',
+                    borderRadius: '12px',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'rgba(168, 85, 247, 0.5)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'rgba(168, 85, 247, 0.7)',
+                  }
+                },
+                '& .MuiButton-root': {
+                  borderRadius: '12px',
+                  margin: '8px',
+                },
+                '& .MuiDialogActions-root': {
+                  padding: '16px 24px',
+                  borderTop: '2px solid rgba(168, 85, 247, 0.1)',
+                }
               }
             }}
           >
-            <DialogTitle>Add New Node</DialogTitle>
-            <DialogContent>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="CPU Cores"
-                type="number"
-                fullWidth
-                value={cpuCores}
-                onChange={(e) => setCpuCores(e.target.value)}
-                inputProps={{ min: 1 }}
-                helperText="Enter the number of CPU cores (minimum 1)"
+          <DialogTitle>Add New Node</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="CPU Cores"
+              type="number"
+              fullWidth
+              value={cpuCores}
+              onChange={(e) => setCpuCores(e.target.value)}
+              inputProps={{ min: 1 }}
+              helperText="Enter the number of CPU cores (minimum 1)"
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: '12px',
                   }
                 }}
-              />
-            </DialogContent>
-            <DialogActions>
+            />
+          </DialogContent>
+          <DialogActions>
               <Button 
                 onClick={() => setOpenNodeDialog(false)}
                 sx={{ borderRadius: '20px', textTransform: 'none' }}
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={handleAddNode} 
-                variant="contained"
-                disabled={!cpuCores || parseInt(cpuCores) < 1}
+            <Button 
+              onClick={handleAddNode} 
+              variant="contained"
+              disabled={!cpuCores || parseInt(cpuCores) < 1}
                 sx={{ borderRadius: '20px', textTransform: 'none' }}
-              >
+            >
                 Add Node
-              </Button>
-            </DialogActions>
-          </Dialog>
+            </Button>
+          </DialogActions>
+        </Dialog>
 
-          {/* Launch Pod Dialog */}
+        {/* Launch Pod Dialog */}
           <Dialog 
             open={openPodDialog} 
             onClose={() => setOpenPodDialog(false)}
@@ -1014,44 +1205,44 @@ function App() {
               }
             }}
           >
-            <DialogTitle>Launch New Pod</DialogTitle>
-            <DialogContent>
-              <TextField
-                autoFocus
-                margin="dense"
-                label="CPU Required"
-                type="number"
-                fullWidth
-                value={cpuRequired}
-                onChange={(e) => setCpuRequired(e.target.value)}
-                inputProps={{ min: 1 }}
-                helperText="Enter the required CPU cores (minimum 1)"
+          <DialogTitle>Launch New Pod</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="CPU Required"
+              type="number"
+              fullWidth
+              value={cpuRequired}
+              onChange={(e) => setCpuRequired(e.target.value)}
+              inputProps={{ min: 1 }}
+              helperText="Enter the required CPU cores (minimum 1)"
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: '12px',
                   }
                 }}
-              />
-            </DialogContent>
-            <DialogActions>
+            />
+          </DialogContent>
+          <DialogActions>
               <Button 
                 onClick={() => setOpenPodDialog(false)}
                 sx={{ borderRadius: '20px', textTransform: 'none' }}
               >
                 Cancel
               </Button>
-              <Button 
-                onClick={handleLaunchPod} 
-                variant="contained"
-                disabled={!cpuRequired || parseInt(cpuRequired) < 1}
+            <Button 
+              onClick={handleLaunchPod} 
+              variant="contained"
+              disabled={!cpuRequired || parseInt(cpuRequired) < 1}
                 sx={{ borderRadius: '20px', textTransform: 'none' }}
                 startIcon={<RocketLaunchIcon />}
-              >
+            >
                 Launch Pod
-              </Button>
-            </DialogActions>
-          </Dialog>
-        </Container>
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
       </Box>
     </CssVarsProvider>
   );
