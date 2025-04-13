@@ -5,13 +5,15 @@ import { Pod } from '../types';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import MemoryIcon from '@mui/icons-material/Memory';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 interface PodVisualizationProps {
   pod: Pod;
   onDelete: () => void;
+  onRestart: () => void;
 }
 
-const PodVisualization: React.FC<PodVisualizationProps> = ({ pod, onDelete }) => {
+const PodVisualization: React.FC<PodVisualizationProps> = ({ pod, onDelete, onRestart }) => {
   const theme = useTheme();
   
   // Format the creation date
@@ -71,7 +73,9 @@ const PodVisualization: React.FC<PodVisualizationProps> = ({ pod, onDelete }) =>
                   ? 'success'
                   : pod.Status.toLowerCase() === 'failed'
                   ? 'error'
-                  : 'warning'
+                  : pod.Status.toLowerCase() === 'restarting'
+                  ? 'warning'
+                  : 'info'
               }
               size="small"
               sx={{ fontWeight: 'bold' }}
@@ -109,8 +113,29 @@ const PodVisualization: React.FC<PodVisualizationProps> = ({ pod, onDelete }) =>
             </Box>
           </Box>
 
-          {/* Delete button */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+          {/* Action buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onRestart}
+              style={{
+                background: 'none',
+                border: `1px solid ${theme.palette.info.main}`,
+                color: theme.palette.info.main,
+                padding: '6px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '0.875rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <RefreshIcon sx={{ fontSize: '1rem' }} />
+              Restart
+            </motion.button>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}

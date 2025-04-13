@@ -191,12 +191,6 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
-	if node.HealthStatus != "Failed" {
-		nodesMu.Unlock()
-		http.Error(w, "Can only delete failed nodes", http.StatusBadRequest)
-		return
-	}
-
 	// First try to stop the container if it's not already stopped
 	stopCmd := exec.Command("docker", "stop", nodeID)
 	if err := stopCmd.Run(); err != nil {
@@ -386,11 +380,14 @@ func handlePodOperations(w http.ResponseWriter, r *http.Request) {
 	}
 	podID := parts[2]
 
-	if r.Method == "DELETE" {
+	switch {
+	case r.Method == "DELETE":
 		handleDeletePod(w, r, podID)
-		return
+	case r.Method == "POST" && len(parts) == 4 && parts[3] == "restart":
+		handleRestartPod(w, r, podID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func handleDeletePod(w http.ResponseWriter, r *http.Request, podID string) {
@@ -408,6 +405,8 @@ func handleDeletePod(w http.ResponseWriter, r *http.Request, podID string) {
 		// Remove pod from node
 		node.Pods = removeFromSlice(node.Pods, podID)
 		node.AvailableCPU += pod.CPURequired
+		log.Printf("Updated node %s: Available CPU now %d, Pods: %v\n",
+			node.ID, node.AvailableCPU, node.Pods)
 	}
 	nodesMu.Unlock()
 
@@ -417,6 +416,52 @@ func handleDeletePod(w http.ResponseWriter, r *http.Request, podID string) {
 
 	log.Printf("Pod %s deleted\n", podID)
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Pod deleted successfully",
+		"podId":   podID,
+	})
+}
+
+func handleRestartPod(w http.ResponseWriter, r *http.Request, podID string) {
+	podsMu.Lock()
+	pod, exists := pods[podID]
+	if !exists {
+		podsMu.Unlock()
+		http.Error(w, "Pod not found", http.StatusNotFound)
+		return
+	}
+	podsMu.Unlock()
+
+	nodesMu.Lock()
+	_, nodeExists := nodes[pod.NodeID]
+	if !nodeExists {
+		nodesMu.Unlock()
+		http.Error(w, "Node not found", http.StatusNotFound)
+		return
+	}
+
+	// Simulate pod restart by updating its status
+	podsMu.Lock()
+	pod.Status = "Restarting"
+	podsMu.Unlock()
+
+	// Simulate a delay for restart
+	go func() {
+		time.Sleep(2 * time.Second)
+		podsMu.Lock()
+		pod.Status = "Running"
+		podsMu.Unlock()
+		log.Printf("Pod %s restarted\n", podID)
+	}()
+
+	nodesMu.Unlock()
+
+	log.Printf("Pod %s restart initiated\n", podID)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Pod restart initiated",
+		"podId":   podID,
+	})
 }
 
 func handleRestartNode(w http.ResponseWriter, r *http.Request, nodeID string) {
@@ -452,10 +497,15 @@ func handleRestartNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 
 	nodesMu.Lock()
 	nodes[nodeID].HealthStatus = "Starting"
+	nodes[nodeID].LastHeartbeat = time.Now() // Reset the heartbeat timer
 	nodesMu.Unlock()
 
 	log.Printf("Node %s restarted\n", nodeID)
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Node restarted successfully",
+		"nodeId":  nodeID,
+	})
 }
 
 func removeFromSlice(slice []string, item string) []string {

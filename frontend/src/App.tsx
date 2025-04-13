@@ -235,6 +235,44 @@ function App() {
     }
   };
 
+  // Handle restart pod
+  const handleRestartPod = async (podId: string) => {
+    try {
+      await api.restartPod(podId);
+      toast.info(`Pod ${podId.substring(0, 8)} restart initiated`);
+      
+      // Update pod status immediately
+      const updatedPods = { ...pods };
+      if (updatedPods[podId]) {
+        updatedPods[podId].Status = 'Restarting';
+        setPods(updatedPods);
+      }
+      
+      // Refresh data after a delay to show the updated status
+      setTimeout(async () => {
+        const nodesData = await api.getNodes();
+        setNodes(nodesData);
+        
+        // Update pods
+        const podsMap: Record<string, Pod> = {};
+        Object.values(nodesData).forEach(node => {
+          node.Pods.forEach(podId => {
+            podsMap[podId] = {
+              ID: podId,
+              CPURequired: 1, // Default value
+              NodeID: node.ID,
+              Status: 'Running',
+              CreatedAt: new Date().toISOString()
+            };
+          });
+        });
+        setPods(podsMap);
+      }, 3000);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to restart pod');
+    }
+  };
+
   // Show loading state
   if (loading && Object.keys(nodes).length === 0) {
   return (
@@ -409,6 +447,7 @@ function App() {
                   key={pod.ID}
                   pod={pod}
                   onDelete={() => handleDeletePod(pod.ID)}
+                  onRestart={() => handleRestartPod(pod.ID)}
                 />
               ))}
             </AnimatedList>

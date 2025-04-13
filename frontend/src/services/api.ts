@@ -91,6 +91,18 @@ const api = {
       }
       throw new Error('Failed to delete pod. Is the API server running?');
     }
+  },
+
+  restartPod: async (podId: string): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/pods/${podId}/restart`);
+    } catch (error: any) {
+      console.error('Error restarting pod:', error);
+      if (error.response?.data) {
+        throw new Error(error.response.data);
+      }
+      throw new Error('Failed to restart pod. Is the API server running?');
+    }
   }
 };
 
