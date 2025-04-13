@@ -54,7 +54,7 @@ function TabPanel(props: TabPanelProps) {
       {value === index && (
         <Box sx={{ p: 3 }}>
           {children}
-        </Box>
+    </Box>
       )}
     </div>
   );
@@ -237,11 +237,11 @@ function App() {
 
   // Show loading state
   if (loading && Object.keys(nodes).length === 0) {
-    return (
+  return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Box
-          sx={{
+              sx={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -250,7 +250,7 @@ function App() {
           }}
         >
           <CircularProgress size={60} thickness={4} />
-        </Box>
+                  </Box>
       </ThemeProvider>
     );
   }
@@ -270,30 +270,30 @@ function App() {
               Kube-Sim
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
+            <Button
+              variant="contained"
                 color="primary"
                 startIcon={<AddCircleOutlineIcon />}
                 onClick={handleAddNode}
                 sx={{ fontWeight: 'bold' }}
-              >
-                Add Node
-              </Button>
-              <Button
-                variant="contained"
+            >
+              Add Node
+            </Button>
+            <Button
+              variant="contained"
                 color="secondary"
                 startIcon={<RocketLaunchIcon />}
                 onClick={handleLaunchPod}
                 sx={{ fontWeight: 'bold' }}
-              >
-                Launch Pod
-              </Button>
-            </Box>
+            >
+              Launch Pod
+            </Button>
+          </Box>
           </Box>
         </motion.div>
 
-        <Paper
-          sx={{
+              <Paper 
+                sx={{ 
             mb: 4,
             background: 'rgba(18, 18, 18, 0.7)',
             backdropFilter: 'blur(10px)',
@@ -307,10 +307,10 @@ function App() {
             indicatorColor="primary"
             textColor="primary"
             variant="fullWidth"
-            sx={{
+                sx={{ 
               borderBottom: '1px solid rgba(63, 81, 181, 0.3)',
               '& .MuiTab-root': {
-                fontWeight: 'bold',
+                    fontWeight: 'bold',
                 py: 2,
               },
             }}
@@ -328,7 +328,7 @@ function App() {
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
                 Add New Node
-              </Typography>
+                          </Typography>
               <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
                 <TextField
                   label="CPU Cores"
@@ -340,7 +340,7 @@ function App() {
                 />
                 <Button
                   variant="contained"
-                  color="primary"
+                          color="primary"
                   startIcon={<AddCircleOutlineIcon />}
                   onClick={handleAddNode}
                 >
@@ -351,7 +351,7 @@ function App() {
 
             <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
               Cluster Nodes
-            </Typography>
+                                </Typography>
             
             <AnimatedList>
               {Object.values(nodes).map((node) => (
@@ -361,8 +361,8 @@ function App() {
                   onStop={() => handleStopNode(node.ID)}
                   onRestart={() => handleRestartNode(node.ID)}
                   onDelete={() => handleDeleteNode(node.ID)}
-                />
-              ))}
+                                    />
+                                  ))}
             </AnimatedList>
             
             {Object.keys(nodes).length === 0 && (
@@ -370,7 +370,7 @@ function App() {
                 <Typography variant="h6" color="text.secondary">
                   No nodes available. Add a node to get started.
                 </Typography>
-              </Box>
+                              </Box>
             )}
           </TabPanel>
 
@@ -380,22 +380,22 @@ function App() {
                 Launch New Pod
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-                <TextField
-                  label="CPU Cores"
-                  type="number"
+            <TextField
+              label="CPU Cores"
+              type="number"
                   value={newPodCores}
                   onChange={(e) => setNewPodCores(parseInt(e.target.value) || 0)}
                   InputProps={{ inputProps: { min: 1 } }}
                   sx={{ width: 200 }}
                 />
-                <Button
-                  variant="contained"
+              <Button 
+              variant="contained"
                   color="secondary"
                   startIcon={<RocketLaunchIcon />}
                   onClick={handleLaunchPod}
-                >
+            >
                   Launch Pod
-                </Button>
+            </Button>
               </Box>
             </Box>
 

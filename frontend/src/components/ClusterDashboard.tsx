@@ -19,6 +19,7 @@ import MemoryIcon from '@mui/icons-material/Memory';
 import StorageIcon from '@mui/icons-material/Storage';
 import SpeedIcon from '@mui/icons-material/Speed';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
+import HeartbeatVisualization from './HeartbeatVisualization';
 
 interface ClusterDashboardProps {
   nodes: Record<string, Node>;
@@ -188,7 +189,22 @@ const ClusterDashboard: React.FC<ClusterDashboardProps> = ({ nodes, pods }) => {
           </Grid>
         </Grid>
         
+        {/* Heartbeat Visualizations */}
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mt: 4 }}>
+          Node Heartbeats
+        </Typography>
+        <Grid container spacing={2} sx={{ mb: 4 }}>
+          {Object.values(nodes).map((node) => (
+            <Grid item xs={12} md={6} key={node.ID}>
+              <HeartbeatVisualization node={node} />
+            </Grid>
+          ))}
+        </Grid>
+        
         {/* Charts */}
+        <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', mt: 4 }}>
+          Cluster Statistics
+        </Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <Paper
