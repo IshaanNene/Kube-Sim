@@ -1,84 +1,160 @@
 #!/bin/bash
 
-# Enhanced Colors and styles for output
+# Cyberpunk color palette
+NEON_PINK='\033[38;5;198m'
+NEON_BLUE='\033[38;5;51m'
+NEON_GREEN='\033[38;5;46m'
+NEON_YELLOW='\033[38;5;226m'
+NEON_PURPLE='\033[38;5;165m'
+NEON_CYAN='\033[38;5;87m'
+NEON_RED='\033[38;5;196m'
+NEON_ORANGE='\033[38;5;214m'
+
+# Base colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 MAGENTA='\033[0;35m'
-ORANGE='\033[0;33m'
-PURPLE='\033[0;95m'
-NC='\033[0m' # No Color
+NC='\033[0m'
+
+# Styles
 BOLD='\033[1m'
 DIM='\033[2m'
 BLINK='\033[5m'
 REVERSE='\033[7m'
 UNDERLINE='\033[4m'
 
+# Get terminal width
+TERM_WIDTH=$(tput cols)
+
 # Get the absolute path of the script's directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Function to create a progress bar
+progress_bar() {
+    local current=$1
+    local total=$2
+    local width=40
+    local percentage=$((current * 100 / total))
+    local filled=$((width * current / total))
+    local empty=$((width - filled))
+    
+    printf "${NEON_BLUE}[${NEON_CYAN}"
+    for ((i = 0; i < filled; i++)); do printf "█"; done
+    printf "${DIM}"
+    for ((i = 0; i < empty; i++)); do printf "░"; done
+    printf "${NEON_BLUE}]${NEON_GREEN} %3d%%${NC}" $percentage
+}
+
+# Function to print centered text
+print_centered() {
+    local text="$1"
+    local color="$2"
+    local padding=$(( (TERM_WIDTH - ${#text}) / 2 ))
+    printf "%${padding}s" ''
+    echo -e "${color}${text}${NC}"
+}
+
+# Function to print a neon box
+print_neon_box() {
+    local text="$1"
+    local color="$2"
+    local width=$((${#text} + 4))
+    local padding=$(( (TERM_WIDTH - width) / 2 ))
+    
+    printf "%${padding}s" ''
+    echo -e "${color}╔═${BOLD}${text}${NC}${color}═╗${NC}"
+    printf "%${padding}s" ''
+    echo -e "${color}╚════${NC}"
+}
+
 # Function to print test results with enhanced styling
 print_result() {
     if [ $1 -eq 0 ]; then
-        echo -e "${GREEN}${BOLD}${REVERSE}[✓] $2${NC}"
+        echo -e "${NEON_GREEN}${BOLD}[${BLINK}✓${NC}${NEON_GREEN}${BOLD}] ${NEON_CYAN}$2 ${NEON_GREEN}[SUCCESS]${NC}"
     else
-        echo -e "${RED}${BOLD}${REVERSE}[✗] $2${NC}"
+        echo -e "${NEON_RED}${BOLD}[${BLINK}✗${NC}${NEON_RED}${BOLD}] ${NEON_PINK}$2 ${NEON_RED}[FAILED]${NC}"
     fi
 }
 
 # Function to print status messages with enhanced styling
 print_status() {
-    echo -e "${CYAN}${BOLD}[*] $1${NC}"
+    echo -e "${NEON_BLUE}${BOLD}[${BLINK}*${NC}${NEON_BLUE}${BOLD}] ${NEON_CYAN}$1${NC}"
 }
 
 # Function to print warning messages with enhanced styling
 print_warning() {
-    echo -e "${YELLOW}${BOLD}[!] $1${NC}"
-}
-
-# Function to print debug messages with enhanced styling
-print_debug() {
-    echo -e "${DIM}[~] $1${NC}"
+    echo -e "${NEON_YELLOW}${BOLD}[${BLINK}!${NC}${NEON_YELLOW}${BOLD}] ${NEON_ORANGE}$1${NC}"
 }
 
 # Function to print success messages with enhanced styling
 print_success() {
-    echo -e "${GREEN}${BOLD}[✓] $1${NC}"
+    echo -e "${NEON_GREEN}${BOLD}[${BLINK}✓${NC}${NEON_GREEN}${BOLD}] ${NEON_CYAN}$1${NC}"
 }
 
 # Function to print error messages with enhanced styling
 print_error() {
-    echo -e "${RED}${BOLD}[✗] $1${NC}"
+    echo -e "${NEON_RED}${BOLD}[${BLINK}✗${NC}${NEON_RED}${BOLD}] ${NEON_PINK}$1${NC}"
 }
 
-# Function to print banner with enhanced styling
+# Function to print cyberpunk banner
 print_banner() {
-    echo -e "${GREEN}${BOLD}${REVERSE}"
-    echo "  _  __      _              ____  _           "
-    echo " | |/ /_   _| |__   ___    / ___|(_)_ __ ___  "
-    echo " | ' /| | | | '_ \ / _ \   \___ \| | '_ \` _ \\ "
-    echo " | . \| |_| | |_) |  __/    ___) | | | | | | |"
-    echo " |_|\_ \\__,_|_.__/ \___|   |____/|_|_| |_| |_|"
-    echo "                                              "
-    echo -e "${NC}"
+    clear
+    echo
+    print_centered "╔══════════════════════════════════════════════════════════╗" "${NEON_BLUE}"
+    print_centered "║                    KUBE-SIM TESTING                      ║" "${NEON_BLUE}"
+    print_centered "╚══════════════════════════════════════════════════════════╝" "${NEON_BLUE}"
+    echo
+    print_centered "██╗  ██╗██╗   ██╗██████╗ ███████╗    ███████╗██╗███╗   ███╗" "${NEON_CYAN}"
+    print_centered "██║ ██╔╝██║   ██║██╔══██╗██╔════╝    ██╔════╝██║████╗ ████║" "${NEON_PURPLE}"
+    print_centered "█████╔╝ ██║   ██║██████╔╝█████╗      ███████╗██║██╔████╔██║" "${NEON_PINK}"
+    print_centered "██╔═██╗ ██║   ██║██╔══██╗██╔══╝      ╚════██║██║██║╚██╔╝██║" "${NEON_BLUE}"
+    print_centered "██║  ██╗╚██████╔╝██████╔╝███████╗    ███████║██║██║ ╚═╝ ██║" "${NEON_GREEN}"
+    print_centered "╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝    ╚══════╝╚═╝╚═╝     ╚═╝" "${NEON_YELLOW}"
+    echo
+    print_centered "INITIALIZING SYSTEM TEST SEQUENCE..." "${NEON_CYAN}"
+    echo
 }
 
 # Function to print test header with enhanced styling
 print_test_header() {
-    echo -e "\n${BLUE}${BOLD}${REVERSE}[=== $1 ===]${NC}"
+    echo
+    print_neon_box " TEST: $1 " "${NEON_PURPLE}"
+    echo
 }
 
 # Function to print section divider
 print_divider() {
-    echo -e "${MAGENTA}${BOLD}----------------------------------------${NC}"
+    echo
+    print_centered "════════════════════════════════════════" "${NEON_BLUE}"
+    echo
+}
+
+# Function to simulate loading animation
+simulate_loading() {
+    local text="$1"
+    local duration=$2
+    local interval=0.1
+    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local temp
+    
+    for ((i = 0; i < duration; i++)); do
+        temp=${spinstr#?}
+        printf "${NEON_CYAN}${BOLD}[%c]${NC} ${NEON_BLUE}${text}${NC}" "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $interval
+        printf "\r"
+    done
+    printf "\n"
 }
 
 # Function to check if Docker is running
 check_docker() {
     print_status "Initializing Docker connection..."
+    simulate_loading "Establishing connection to Docker daemon" 10
     if ! docker info > /dev/null 2>&1; then
         print_error "Docker daemon is not running. Please start Docker and try again."
         exit 1
@@ -181,30 +257,37 @@ cleanup() {
 # Set up trap for cleanup
 trap cleanup EXIT
 
-# Print banner
+# Main test sequence
 print_banner
 
-# Check if Docker is running
+# Initialize test environment
+print_neon_box " INITIALIZING TEST ENVIRONMENT " "${NEON_BLUE}"
+echo
+
+# Check Docker
 check_docker
 
-# Kill any existing API server
+# Kill existing API server
 kill_existing_api
 
-# Start API server
+# Start API server with progress indication
 print_status "Launching API server..."
-cd "$PROJECT_ROOT/api-server"
-go build -o api-server
+cd "$PROJECT_ROOT/api-server" || { print_error "Failed to change to api-server directory"; exit 1; }
+go build -o api-server || { print_error "Failed to build api-server"; exit 1; }
 ./api-server &
 API_PID=$!
 
-# Wait for API server to be ready
-if ! wait_for_api; then
-    exit 1
-fi
+# Wait for API server with progress bar
+for i in {1..10}; do
+    progress_bar $i 10
+    echo -en "\r"
+    sleep 1
+done
+echo
 
 # Test 1: Add nodes
 print_test_header "NODE DEPLOYMENT TEST"
-cd "$PROJECT_ROOT/cli"
+cd "$PROJECT_ROOT/cli" || { print_error "Failed to change to cli directory"; exit 1; }
 ./cli add-node 4
 NODE1_RESULT=$?
 ./cli add-node 6
@@ -314,8 +397,10 @@ else
 fi
 print_divider
 
-# Summary
-echo -e "\n${BLUE}${BOLD}${REVERSE}[=== TEST SUMMARY ===]${NC}"
+# Print final summary with enhanced styling
+echo
+print_neon_box " TEST SUMMARY " "${NEON_PURPLE}"
+echo
 print_result $NODE1_RESULT "Node deployment (4 cores)"
 print_result $NODE2_RESULT "Node deployment (6 cores)"
 print_result $LIST_NODES_RESULT "Node status retrieval"
@@ -327,4 +412,10 @@ print_result $NODE_FAILURE_RESULT "Node failure simulation"
 print_result $NODE_STOP_RESULT "Node stop operation"
 print_result $NODE_RESTART_RESULT "Node restart operation"
 
-# Cleanup will be handled by the trap 
+# Cleanup with progress indication
+print_neon_box " CLEANUP SEQUENCE " "${NEON_RED}"
+echo
+simulate_loading "Cleaning up resources" 5
+cleanup
+print_centered "TEST SEQUENCE COMPLETED" "${NEON_GREEN}"
+echo 
