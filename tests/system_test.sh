@@ -62,13 +62,17 @@ print_centered() {
 print_neon_box() {
     local text="$1"
     local color="$2"
-    local width=$((${#text} + 4))
-    local padding=$(( (TERM_WIDTH - width) / 2 ))
+    local text_length=${#text}
+    local box_width=$((text_length + 4))  # Add padding for the box borders
+    local padding=$(( (TERM_WIDTH - box_width) / 2 ))
     
+    # Create the top border
     printf "%${padding}s" ''
     echo -e "${color}╔═${BOLD}${text}${NC}${color}═╗${NC}"
+    
+    # Create the bottom border with dynamic length
     printf "%${padding}s" ''
-    echo -e "${color}╚════${NC}"
+    echo -e "${color}╚$(printf '═%.0s' $(seq 1 $((box_width - 2))))╝${NC}"
 }
 
 # Function to print test results with enhanced styling
