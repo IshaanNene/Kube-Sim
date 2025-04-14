@@ -178,6 +178,74 @@ func main() {
 				node.ID, node.AvailableCPU, node.CPUCores, node.HealthStatus, node.Pods)
 		}
 
+	case "set-scheduler":
+		if len(os.Args) != 3 {
+			fmt.Println("Usage: cli set-scheduler <algorithm>")
+			fmt.Println("Available algorithms: first-fit, best-fit, worst-fit")
+			os.Exit(1)
+		}
+		algorithm := os.Args[2]
+		if algorithm != "first-fit" && algorithm != "best-fit" && algorithm != "worst-fit" {
+			fmt.Println("Invalid algorithm. Must be one of: first-fit, best-fit, worst-fit")
+			os.Exit(1)
+		}
+		req := map[string]string{"algorithm": algorithm}
+		jsonData, _ := json.Marshal(req)
+		resp, err := client.Post("http://localhost:8080/scheduler", "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			fmt.Println("Failed to set scheduler, status:", resp.Status)
+			os.Exit(1)
+		}
+		fmt.Printf("Scheduler algorithm set to %s\n", algorithm)
+
+	case "list-pods":
+		resp, err := client.Get("http://localhost:8080/pods")
+		if err != nil {
+			fmt.Println("Error:", err)
+			os.Exit(1)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("Error reading response:", err)
+			os.Exit(1)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("Error: %s\n", string(body))
+			os.Exit(1)
+		}
+
+		var pods map[string]struct {
+			ID          string `json:"ID"`
+			CPURequired int    `json:"CPURequired"`
+			NodeID      string `json:"NodeID"`
+			Status      string `json:"Status"`
+			CreatedAt   string `json:"CreatedAt"`
+		}
+
+		if err := json.Unmarshal(body, &pods); err != nil {
+			fmt.Println("Error decoding response:", err)
+			os.Exit(1)
+		}
+
+		if len(pods) == 0 {
+			fmt.Println("No pods found")
+			return
+		}
+
+		fmt.Println("Pods:")
+		for _, pod := range pods {
+			fmt.Printf("Pod %s: CPU %d, Node %s, Status: %s, Created: %s\n",
+				pod.ID[:8], pod.CPURequired, pod.NodeID[:8], pod.Status, pod.CreatedAt)
+		}
+
 	default:
 		printUsage()
 		os.Exit(1)
@@ -194,4 +262,6 @@ func printUsage() {
 	fmt.Println("  delete-node <nodeID>    Delete a stopped node")
 	fmt.Println("  launch-pod <cpuRequired> Launch a pod with specified CPU requirements")
 	fmt.Println("  list-nodes              List all nodes with their health status")
+	fmt.Println("  list-pods               List all pods with their details")
+	fmt.Println("  set-scheduler <algorithm> Change the scheduling algorithm (first-fit, best-fit, worst-fit)")
 }

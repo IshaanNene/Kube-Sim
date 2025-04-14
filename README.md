@@ -1,22 +1,168 @@
 # Kube-Sim
 Kube-Sim is a lightweight, simulation-based distributed system that mimics core Kubernetes cluster management functionalities. Built with Go and Docker, it demonstrates key distributed computing concepts such as node addition, pod scheduling, health monitoring, and failure recovery. This project is designed for educational purposes and provides a simplified yet comprehensive platform to explore cluster management.
 
+## Weekly Implementation Breakdown
+
+### Week 1 (15 M)
+- **API Server Base Implementation**
+  - Implemented HTTP server with CORS support
+  - Created node management endpoints (add, stop, restart, delete)
+  - Implemented pod management endpoints (launch, delete)
+  - Added heartbeat mechanism for health monitoring
+
+- **Node Manager Functionality**
+  - Added node addition with CPU core specification
+  - Implemented Docker container management for nodes
+  - Created node health status tracking
+  - Added node resource management (CPU allocation)
+
+### Week 2 (15 M)
+- **Pod Scheduler Implementation**
+  - Implemented three scheduling algorithms:
+    - First-Fit: Selects the first node with sufficient resources
+    - Best-Fit: Selects the node with the smallest available CPU that can accommodate the pod
+    - Worst-Fit: Selects the node with the largest available CPU that can accommodate the pod
+  - Added pod-to-node assignment logic
+  - Implemented resource tracking and allocation
+  - Enhanced scheduler with detailed logging and status reporting
+
+- **Health Monitor**
+  - Implemented node heartbeat mechanism
+  - Added failure detection (15-second timeout)
+  - Created automatic pod rescheduling from failed nodes
+  - Implemented health status reporting
+
+### Week 3 (10 M)
+- **Node Listing and Status**
+  - Implemented comprehensive node status reporting
+  - Added pod-to-node relationship tracking
+  - Created health status visualization
+  - Implemented resource utilization reporting
+
+- **System Testing and Documentation**
+  - Added comprehensive test cases
+  - Created detailed documentation
+  - Implemented error handling and logging
+  - Added system monitoring capabilities
+
+### Week 4 (10 M)
+- **API Enhancements**
+  - Improved pod listing endpoint with detailed status information
+  - Enhanced error handling and response formatting
+  - Added timestamp formatting for better readability
+  - Implemented proper HTTP method handling
+
+- **CLI Improvements**
+  - Added support for changing scheduling algorithms
+  - Enhanced pod listing with detailed information
+  - Improved error messages and user feedback
+  - Added validation for command inputs
+
 ## Features
-- **Node Addition**: Add nodes to the cluster with specified CPU cores, simulated using Docker containers.
-- **Pod Scheduling**: Schedule pods with CPU requirements using a First-Fit algorithm (extensible to Best-Fit or Worst-Fit).
-- **Health Monitoring**: Nodes send periodic heartbeats; the system detects failures and marks nodes as "Failed" if heartbeats stop.
-- **Failure Recovery**: Automatically reschedules pods from failed nodes to healthy ones, if resources are available.
-- **Node Listing**: View all nodes with their health status, CPU usage, and assigned pods.
+- **Node Management**: Add, stop, restart, and delete nodes with specified CPU cores
+- **Pod Scheduling**: Three scheduling algorithms (First-Fit, Best-Fit, Worst-Fit)
+- **Health Monitoring**: Node heartbeat mechanism with failure detection
+- **Failure Recovery**: Automatic pod rescheduling from failed nodes
+- **Resource Management**: CPU allocation and tracking
+- **Status Reporting**: Comprehensive node and pod status information
+- **Dynamic Scheduling**: Ability to change scheduling algorithms at runtime
+- **Detailed Logging**: Enhanced logging for debugging and monitoring
 
 ## Project Structure
-- **`api-server/`**: Contains the API server code (`main.go`) that manages the cluster.
-- **`node/`**: Contains the node program code (`main.go`) and Dockerfile for simulating nodes.
-- **`cli/`**: Contains the CLI program code (`main.go`) for interacting with the API server.
+- **`api-server/`**: Core API server with scheduling and management logic
+- **`node/`**: Node implementation with heartbeat mechanism
+- **`cli/`**: Command-line interface for system interaction
+- **`frontend/`**: Web interface for system monitoring
+
+## System Testing
+
+### Node Management Tests
+1. **Node Addition**
+   ```bash
+   ./cli add-node 4
+   ./cli add-node 6
+   ```
+   - Verify nodes are added with correct CPU cores
+   - Check Docker containers are created
+   - Verify heartbeat mechanism is working
+
+2. **Node Operations**
+   ```bash
+   ./cli stop-node <node-id>
+   ./cli restart-node <node-id>
+   ./cli delete-node <node-id>
+   ```
+   - Verify node status changes
+   - Check resource cleanup
+   - Verify pod rescheduling (if applicable)
+
+### Pod Scheduling Tests
+1. **First-Fit Scheduling**
+   ```bash
+   ./cli set-scheduler first-fit
+   ./cli launch-pod 2
+   ./cli launch-pod 3
+   ```
+   - Verify pods are assigned to first available node
+   - Check CPU allocation
+
+2. **Best-Fit Scheduling**
+   ```bash
+   ./cli set-scheduler best-fit
+   ./cli launch-pod 2
+   ./cli launch-pod 3
+   ```
+   - Verify pods are assigned to node with smallest available CPU
+   - Check resource utilization
+
+3. **Worst-Fit Scheduling**
+   ```bash
+   ./cli set-scheduler worst-fit
+   ./cli launch-pod 2
+   ./cli launch-pod 3
+   ```
+   - Verify pods are assigned to node with largest available CPU
+   - Check resource distribution
+
+### Health Monitoring Tests
+1. **Heartbeat Verification**
+   ```bash
+   ./cli list-nodes
+   ```
+   - Verify all nodes show "Healthy" status
+   - Check heartbeat timestamps
+
+2. **Failure Simulation**
+   ```bash
+   docker stop <node-id>
+   # Wait 20 seconds
+   ./cli list-nodes
+   ```
+   - Verify node status changes to "Failed"
+   - Check pod rescheduling
+   - Verify resource cleanup
+
+### Resource Management Tests
+1. **CPU Allocation**
+   ```bash
+   ./cli add-node 4
+   ./cli launch-pod 2
+   ./cli launch-pod 2
+   ```
+   - Verify CPU allocation is correct
+   - Check resource exhaustion handling
+
+2. **Resource Exhaustion**
+   ```bash
+   ./cli launch-pod 5
+   ```
+   - Verify error handling for insufficient resources
+   - Check system stability
 
 ## Prerequisites
-- **Go**: Version 1.16 or later (install from [golang.org](https://golang.org/dl/)).
-- **Docker**: Installed and running (install from [docker.com](https://www.docker.com/get-started)).
-- **Operating System**: Tested on macOS; should work on Linux and Windows with minor adjustments (e.g., Docker networking).
+- **Go**: Version 1.16 or later (install from [golang.org](https://golang.org/dl/))
+- **Docker**: Installed and running (install from [docker.com](https://www.docker.com/get-started))
+- **Node.js and npm**: Required for frontend development
 
 ## Setup and Running the Project
 
@@ -44,23 +190,24 @@ cd Kube-Sim
 ### Step 3: Run the API Server
 1. Navigate to the `api-server` directory:
    ```bash
-   cd ../api-server
+   cd api-server
    ```
 2. Initialize the Go module and install dependencies:
    ```bash
    go mod init api-server
    go get github.com/google/uuid
    ```
-3. Start the API server:
+3. Build and start the API server:
    ```bash
-   go run main.go
+   go build -o api-server
+   ./api-server
    ```
    The server will start on `http://localhost:8080`. Keep this terminal running.
 
 ### Step 4: Build and Use the CLI
 1. Open a new terminal and navigate to the `cli` directory:
    ```bash
-   cd ../cli
+   cd cli
    ```
 2. Initialize the Go module and build the CLI:
    ```bash
@@ -71,7 +218,7 @@ cd Kube-Sim
 ### Step 5: Run the Frontend
 1. Navigate to the `frontend` directory:
    ```bash
-   cd ../frontend
+   cd frontend
    ```
 2. Install dependencies:
    ```bash
@@ -88,10 +235,18 @@ cd Kube-Sim
 ## Usage Examples
 ### Basic Operations
 ```bash
-./cli add-node 4        
-./cli add-node 6         
-./cli launch-pod 2      
-./cli list-nodes         
+./cli add-node 4        # Add a node with 4 CPU cores
+./cli add-node 6        # Add a node with 6 CPU cores
+./cli launch-pod 2      # Launch a pod requiring 2 CPU cores
+./cli list-nodes        # List all nodes and their status
+./cli list-pods         # List all pods and their details
+```
+
+### Scheduling Algorithm Management
+```bash
+./cli set-scheduler first-fit  # Switch to First-Fit scheduling
+./cli set-scheduler best-fit   # Switch to Best-Fit scheduling
+./cli set-scheduler worst-fit  # Switch to Worst-Fit scheduling
 ```
 
 ### Simulating Node Failure
@@ -119,10 +274,8 @@ cd Kube-Sim
 - **Exceed capacity**: `./cli launch-pod 10` → Expect "Failed to launch pod" if insufficient CPU.
 
 ### Health Monitoring Tests
-1. Stop a node: `docker stop <node-id>`
-2. Wait 20 seconds
-3. Check status: `./cli list-nodes`
-4. Verify pod rescheduling on remaining healthy nodes.
+- **Check node status**: `./cli list-nodes` → Verify all nodes are healthy
+- **Check pod status**: `./cli list-pods` → Verify all pods are running
 
 ## Notes
 - **Networking**: Uses `host.docker.internal` for simplicity. On Linux, you may need to adjust to `localhost` or use a Docker network.

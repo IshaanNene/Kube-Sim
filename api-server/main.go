@@ -31,18 +31,26 @@ type Pod struct {
 	CreatedAt   time.Time
 }
 
+type Scheduler struct {
+	Algorithm string
+	Nodes     map[string]*Node
+}
+
 var (
 	nodes     = make(map[string]*Node)
 	pods      = make(map[string]*Pod)
 	nodesMu   sync.Mutex
 	podsMu    sync.Mutex
-	scheduler = "first-fit"
+	scheduler = &Scheduler{
+		Algorithm: "first-fit",
+		Nodes:     make(map[string]*Node),
+	}
 )
 
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
 		if r.Method == "OPTIONS" {
@@ -58,16 +66,27 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	log.Println("Starting Kube-Sim API Server...")
 
-	http.HandleFunc("/nodes", enableCORS(handleNodes))
-	http.HandleFunc("/nodes/", enableCORS(handleNodeOperations))
-	http.HandleFunc("/pods", enableCORS(handlePods))
-	http.HandleFunc("/pods/", enableCORS(handlePodOperations))
-	http.HandleFunc("/heartbeat", enableCORS(handleHeartbeat))
+	// Set up routes with CORS
+	mux := http.NewServeMux()
+	mux.HandleFunc("/nodes", enableCORS(handleNodes))
+	mux.HandleFunc("/nodes/", enableCORS(handleNodeOperations))
+	mux.HandleFunc("/pods", enableCORS(handlePods))
+	mux.HandleFunc("/pods/", enableCORS(handlePodOperations))
+	mux.HandleFunc("/heartbeat", enableCORS(handleHeartbeat))
+	mux.HandleFunc("/scheduler", enableCORS(handleScheduler))
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 
 	go healthMonitor()
 
 	log.Println("API Server listening on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal("Server failed:", err)
 	}
 }
@@ -88,12 +107,13 @@ func handleNodes(w http.ResponseWriter, r *http.Request) {
 		}
 
 		nodeID := uuid.New().String()
-		cmd := exec.Command("docker", "run", "-d", "--name", nodeID,
+		cmd := exec.Command("docker", "run", "-d", "--name", "node-"+nodeID,
 			"-e", "NODE_ID="+nodeID,
 			"-e", "API_SERVER=http://host.docker.internal:8080",
 			"node-image")
 		if err := cmd.Run(); err != nil {
-			http.Error(w, "Failed to launch node", http.StatusInternalServerError)
+			log.Printf("Error launching node container: %v", err)
+			http.Error(w, "Failed to launch node container", http.StatusInternalServerError)
 			return
 		}
 
@@ -111,7 +131,11 @@ func handleNodes(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("Node %s added with %d CPU cores\n", nodeID, req.CPUCores)
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, "Node %s added with %d CPU cores\n", nodeID, req.CPUCores)
+		response := map[string]string{
+			"message": fmt.Sprintf("Node %s added with %d CPU cores", nodeID, req.CPUCores),
+			"nodeId":  nodeID,
+		}
+		json.NewEncoder(w).Encode(response)
 
 	case "GET":
 		nodesMu.Lock()
@@ -161,7 +185,7 @@ func handleStopNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 	}
 
 	// Stop the Docker container
-	cmd := exec.Command("docker", "stop", nodeID)
+	cmd := exec.Command("docker", "stop", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Error stopping node %s: %v\n", nodeID, err)
 		http.Error(w, "Failed to stop node", http.StatusInternalServerError)
@@ -191,26 +215,19 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
-	// First try to stop the container if it's not already stopped
-	stopCmd := exec.Command("docker", "stop", nodeID)
-	if err := stopCmd.Run(); err != nil {
-		log.Printf("Warning: Error stopping container %s: %v\n", nodeID, err)
-		// Continue anyway as the container might already be stopped
+	// Stop and remove the Docker container
+	cmd := exec.Command("docker", "rm", "-f", "node-"+nodeID)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Error deleting node %s: %v\n", nodeID, err)
+		http.Error(w, "Failed to delete node", http.StatusInternalServerError)
+		return
 	}
 
-	// Then remove the container
-	rmCmd := exec.Command("docker", "rm", "-f", nodeID)
-	if err := rmCmd.Run(); err != nil {
-		log.Printf("Warning: Error removing container %s: %v\n", nodeID, err)
-		// Continue with node deletion even if container removal fails
-		// The container might not exist anymore
-	}
-
-	// Delete the node from our map
+	nodesMu.Lock()
 	delete(nodes, nodeID)
 	nodesMu.Unlock()
 
-	log.Printf("Node %s deleted successfully\n", nodeID)
+	log.Printf("Node %s deleted\n", nodeID)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Node deleted successfully",
@@ -219,48 +236,92 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 }
 
 func handlePods(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	w.Header().Set("Content-Type", "application/json")
+
+	switch r.Method {
+	case "GET":
+		podsMu.Lock()
+		defer podsMu.Unlock()
+
+		// Create a map with formatted timestamps
+		podsWithFormattedTime := make(map[string]struct {
+			ID          string `json:"ID"`
+			CPURequired int    `json:"CPURequired"`
+			NodeID      string `json:"NodeID"`
+			Status      string `json:"Status"`
+			CreatedAt   string `json:"CreatedAt"`
+		})
+
+		for id, pod := range pods {
+			podsWithFormattedTime[id] = struct {
+				ID          string `json:"ID"`
+				CPURequired int    `json:"CPURequired"`
+				NodeID      string `json:"NodeID"`
+				Status      string `json:"Status"`
+				CreatedAt   string `json:"CreatedAt"`
+			}{
+				ID:          pod.ID,
+				CPURequired: pod.CPURequired,
+				NodeID:      pod.NodeID,
+				Status:      pod.Status,
+				CreatedAt:   pod.CreatedAt.Format(time.RFC3339),
+			}
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(podsWithFormattedTime); err != nil {
+			log.Printf("Error encoding pods response: %v", err)
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+
+	case "POST":
+		var req struct {
+			CPURequired int `json:"cpuRequired"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if req.CPURequired <= 0 {
+			http.Error(w, "CPU required must be positive", http.StatusBadRequest)
+			return
+		}
+
+		podID := uuid.New().String()
+		nodeID, err := schedulePod(req.CPURequired)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		podsMu.Lock()
+		pods[podID] = &Pod{
+			ID:          podID,
+			CPURequired: req.CPURequired,
+			NodeID:      nodeID,
+			Status:      "Running",
+			CreatedAt:   time.Now(),
+		}
+		podsMu.Unlock()
+
+		nodesMu.Lock()
+		nodes[nodeID].Pods = append(nodes[nodeID].Pods, podID)
+		nodes[nodeID].AvailableCPU -= req.CPURequired
+		nodesMu.Unlock()
+
+		log.Printf("Pod %s launched on node %s with %d CPU\n", podID, nodeID, req.CPURequired)
+		w.WriteHeader(http.StatusCreated)
+		response := map[string]string{
+			"message": fmt.Sprintf("Pod %s launched on node %s with %d CPU", podID, nodeID, req.CPURequired),
+			"podId":   podID,
+			"nodeId":  nodeID,
+		}
+		json.NewEncoder(w).Encode(response)
+
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
-
-	var req struct {
-		CPURequired int `json:"cpuRequired"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-	if req.CPURequired <= 0 {
-		http.Error(w, "CPU required must be positive", http.StatusBadRequest)
-		return
-	}
-
-	podID := uuid.New().String()
-	nodeID, err := schedulePod(req.CPURequired)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	podsMu.Lock()
-	pods[podID] = &Pod{
-		ID:          podID,
-		CPURequired: req.CPURequired,
-		NodeID:      nodeID,
-		Status:      "Running",
-		CreatedAt:   time.Now(),
-	}
-	podsMu.Unlock()
-
-	nodesMu.Lock()
-	nodes[nodeID].Pods = append(nodes[nodeID].Pods, podID)
-	nodes[nodeID].AvailableCPU -= req.CPURequired
-	nodesMu.Unlock()
-
-	log.Printf("Pod %s launched on node %s with %d CPU\n", podID, nodeID, req.CPURequired)
-	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "Pod %s launched on node %s with %d CPU\n", podID, nodeID, req.CPURequired)
 }
 
 func handleHeartbeat(w http.ResponseWriter, r *http.Request) {
@@ -298,14 +359,63 @@ func handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleScheduler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Algorithm string `json:"algorithm"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	if req.Algorithm != "first-fit" && req.Algorithm != "best-fit" && req.Algorithm != "worst-fit" {
+		http.Error(w, "Invalid algorithm", http.StatusBadRequest)
+		return
+	}
+
+	scheduler.Algorithm = req.Algorithm
+	log.Printf("Scheduler algorithm changed to %s", scheduler.Algorithm)
+	w.WriteHeader(http.StatusOK)
+}
+
 func schedulePod(cpuRequired int) (string, error) {
 	nodesMu.Lock()
 	defer nodesMu.Unlock()
 
+	switch scheduler.Algorithm {
+	case "first-fit":
+		return firstFitScheduling(cpuRequired)
+	case "best-fit":
+		return bestFitScheduling(cpuRequired)
+	case "worst-fit":
+		return worstFitScheduling(cpuRequired)
+	default:
+		return firstFitScheduling(cpuRequired)
+	}
+}
+
+func firstFitScheduling(cpuRequired int) (string, error) {
+	log.Printf("First-Fit scheduling: Looking for node with %d CPU cores", cpuRequired)
+	for _, node := range nodes {
+		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
+			log.Printf("First-Fit: Selected node %s with %d available CPU cores", node.ID, node.AvailableCPU)
+			return node.ID, nil
+		}
+	}
+	log.Printf("First-Fit: No suitable node found for %d CPU cores", cpuRequired)
+	return "", fmt.Errorf("no available node with sufficient CPU")
+}
+
+func bestFitScheduling(cpuRequired int) (string, error) {
+	log.Printf("Best-Fit scheduling: Looking for node with %d CPU cores", cpuRequired)
 	var selectedNode string
 	minAvailableCPU := int(^uint(0) >> 1) // Max int
 
-	// Implementing Best-Fit scheduling
 	for _, node := range nodes {
 		if node.HealthStatus == "Healthy" &&
 			node.AvailableCPU >= cpuRequired &&
@@ -316,10 +426,34 @@ func schedulePod(cpuRequired int) (string, error) {
 	}
 
 	if selectedNode == "" {
+		log.Printf("Best-Fit: No suitable node found for %d CPU cores", cpuRequired)
 		return "", fmt.Errorf("no available node with sufficient CPU")
 	}
 
-	log.Printf("Selected node %s for pod (CPU required: %d)\n", selectedNode[:8], cpuRequired)
+	log.Printf("Best-Fit: Selected node %s with %d available CPU cores", selectedNode, minAvailableCPU)
+	return selectedNode, nil
+}
+
+func worstFitScheduling(cpuRequired int) (string, error) {
+	log.Printf("Worst-Fit scheduling: Looking for node with %d CPU cores", cpuRequired)
+	var selectedNode string
+	maxAvailableCPU := 0
+
+	for _, node := range nodes {
+		if node.HealthStatus == "Healthy" &&
+			node.AvailableCPU >= cpuRequired &&
+			node.AvailableCPU > maxAvailableCPU {
+			selectedNode = node.ID
+			maxAvailableCPU = node.AvailableCPU
+		}
+	}
+
+	if selectedNode == "" {
+		log.Printf("Worst-Fit: No suitable node found for %d CPU cores", cpuRequired)
+		return "", fmt.Errorf("no available node with sufficient CPU")
+	}
+
+	log.Printf("Worst-Fit: Selected node %s with %d available CPU cores", selectedNode, maxAvailableCPU)
 	return selectedNode, nil
 }
 
@@ -466,7 +600,7 @@ func handleRestartPod(w http.ResponseWriter, r *http.Request, podID string) {
 
 func handleRestartNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 	nodesMu.Lock()
-	node, exists := nodes[nodeID]
+	_, exists := nodes[nodeID]
 	nodesMu.Unlock()
 
 	if !exists {
@@ -474,38 +608,21 @@ func handleRestartNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
-	if len(node.Pods) > 0 {
-		http.Error(w, "Cannot restart node with running pods", http.StatusBadRequest)
-		return
-	}
-
-	// Stop the container
-	stopCmd := exec.Command("docker", "stop", nodeID)
-	if err := stopCmd.Run(); err != nil {
-		log.Printf("Error stopping node %s: %v\n", nodeID, err)
-		http.Error(w, "Failed to stop node", http.StatusInternalServerError)
-		return
-	}
-
-	// Start the container
-	startCmd := exec.Command("docker", "start", nodeID)
-	if err := startCmd.Run(); err != nil {
-		log.Printf("Error starting node %s: %v\n", nodeID, err)
-		http.Error(w, "Failed to start node", http.StatusInternalServerError)
+	// Start the Docker container
+	cmd := exec.Command("docker", "start", "node-"+nodeID)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Error restarting node %s: %v\n", nodeID, err)
+		http.Error(w, "Failed to restart node", http.StatusInternalServerError)
 		return
 	}
 
 	nodesMu.Lock()
-	nodes[nodeID].HealthStatus = "Starting"
-	nodes[nodeID].LastHeartbeat = time.Now() // Reset the heartbeat timer
+	nodes[nodeID].HealthStatus = "Healthy"
+	nodes[nodeID].LastHeartbeat = time.Now()
 	nodesMu.Unlock()
 
 	log.Printf("Node %s restarted\n", nodeID)
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Node restarted successfully",
-		"nodeId":  nodeID,
-	})
 }
 
 func removeFromSlice(slice []string, item string) []string {
