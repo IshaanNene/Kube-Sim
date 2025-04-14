@@ -70,6 +70,10 @@ print_neon_box() {
     printf "%${padding}s" ''
     echo -e "${color}╔═${BOLD}${text}${NC}${color}═╗${NC}"
     
+    # Add empty line
+    printf "%${padding}s" ''
+    echo -e "${color}║ ${NC}${BOLD}${text}${NC}${color} ║${NC}"
+    
     # Create the bottom border with dynamic length
     printf "%${padding}s" ''
     echo -e "${color}╚$(printf '═%.0s' $(seq 1 $((box_width - 2))))╝${NC}"
