@@ -13,6 +13,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// Cyberpunk color codes
+const (
+	NEON_PINK   = "\033[38;5;198m"
+	NEON_BLUE   = "\033[38;5;51m"
+	NEON_GREEN  = "\033[38;5;46m"
+	NEON_YELLOW = "\033[38;5;226m"
+	NEON_CYAN   = "\033[38;5;87m"
+	NEON_RED    = "\033[38;5;196m"
+	NEON_ORANGE = "\033[38;5;214m"
+	BOLD        = "\033[1m"
+	NC          = "\033[0m"
+)
+
 type Node struct {
 	ID             string
 	CPUCores       int
@@ -64,7 +77,7 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-	log.Println("Starting Kube-Sim API Server...")
+	fmt.Printf("%s%s[*] %sStarting Kube-Sim API Server...%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
 
 	// Set up routes with CORS
 	mux := http.NewServeMux()
@@ -85,8 +98,9 @@ func main() {
 
 	go healthMonitor()
 
-	log.Println("API Server listening on :8080")
+	fmt.Printf("%s%s[*] %sAPI Server listening on :8080%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
 	if err := http.ListenAndServe(":8080", mux); err != nil {
+		fmt.Printf("%s%s[✗] %sServer failed: %v%s\n", NEON_RED, BOLD, NEON_PINK, err, NC)
 		log.Fatal("Server failed:", err)
 	}
 }
@@ -112,7 +126,7 @@ func handleNodes(w http.ResponseWriter, r *http.Request) {
 			"-e", "API_SERVER=http://host.docker.internal:8080",
 			"node-image")
 		if err := cmd.Run(); err != nil {
-			log.Printf("Error launching node container: %v", err)
+			fmt.Printf("%s%s[✗] %sError launching node container: %v%s\n", NEON_RED, BOLD, NEON_PINK, err, NC)
 			http.Error(w, "Failed to launch node container", http.StatusInternalServerError)
 			return
 		}
@@ -129,7 +143,7 @@ func handleNodes(w http.ResponseWriter, r *http.Request) {
 		}
 		nodesMu.Unlock()
 
-		log.Printf("Node %s added with %d CPU cores\n", nodeID, req.CPUCores)
+		fmt.Printf("%s%s[✓] %sNode %s added with %d CPU cores%s\n", NEON_GREEN, BOLD, NEON_CYAN, nodeID, req.CPUCores, NC)
 		w.WriteHeader(http.StatusCreated)
 		response := map[string]string{
 			"message": fmt.Sprintf("Node %s added with %d CPU cores", nodeID, req.CPUCores),
@@ -351,8 +365,8 @@ func handleHeartbeat(w http.ResponseWriter, r *http.Request) {
 	node.LastHeartbeat = time.Now()
 	node.HeartbeatCount++
 	node.HealthStatus = hb.Status
-	log.Printf("Heartbeat received from node %s (count: %d, status: %s)\n",
-		hb.NodeID[:8], node.HeartbeatCount, hb.Status)
+	fmt.Printf("%s%s[*] %sHeartbeat received from node %s (count: %d, status: %s)%s\n",
+		NEON_BLUE, BOLD, NEON_CYAN, hb.NodeID[:8], node.HeartbeatCount, hb.Status, NC)
 
 	if err := json.NewEncoder(w).Encode(map[string][]string{"pods": node.Pods}); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
@@ -464,8 +478,8 @@ func healthMonitor() {
 		for nodeID, node := range nodes {
 			timeSinceLastHeartbeat := time.Since(node.LastHeartbeat)
 			if timeSinceLastHeartbeat > 15*time.Second && node.HealthStatus != "Failed" {
-				log.Printf("Node %s marked as Failed (Last heartbeat: %.1f seconds ago)\n",
-					nodeID[:8], timeSinceLastHeartbeat.Seconds())
+				fmt.Printf("%s%s[!] %sNode %s marked as Failed (Last heartbeat: %.1f seconds ago)%s\n",
+					NEON_YELLOW, BOLD, NEON_ORANGE, nodeID[:8], timeSinceLastHeartbeat.Seconds(), NC)
 				node.HealthStatus = "Failed"
 				podsToReschedule := node.Pods
 				node.Pods = []string{}
@@ -482,7 +496,7 @@ func healthMonitor() {
 
 					newNodeID, err := schedulePod(pod.CPURequired)
 					if err != nil {
-						log.Printf("Failed to reschedule pod %s: %v\n", podID[:8], err)
+						fmt.Printf("%s%s[✗] %sFailed to reschedule pod %s: %v%s\n", NEON_RED, BOLD, NEON_PINK, podID[:8], err, NC)
 						continue
 					}
 
@@ -495,7 +509,7 @@ func healthMonitor() {
 					podsMu.Unlock()
 					nodesMu.Unlock()
 
-					log.Printf("Pod %s rescheduled to node %s\n", podID[:8], newNodeID[:8])
+					fmt.Printf("%s%s[✓] %sPod %s rescheduled to node %s%s\n", NEON_GREEN, BOLD, NEON_CYAN, podID[:8], newNodeID[:8], NC)
 				}
 
 				// Reacquire the lock to continue iteration
