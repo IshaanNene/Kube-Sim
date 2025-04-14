@@ -14,6 +14,10 @@ import {
   useTheme,
   CssBaseline,
   ThemeProvider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -23,6 +27,8 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import StorageIcon from '@mui/icons-material/Storage';
 import MemoryIcon from '@mui/icons-material/Memory';
+import SettingsIcon from '@mui/icons-material/Settings';
+import { SelectChangeEvent } from '@mui/material/Select';
 
 import { Node, Pod } from './types';
 import { api } from './services/api';
@@ -67,6 +73,7 @@ function App() {
   const [tabValue, setTabValue] = useState(0);
   const [newNodeCores, setNewNodeCores] = useState<number>(2);
   const [newPodCores, setNewPodCores] = useState<number>(1);
+  const [schedulerAlgorithm, setSchedulerAlgorithm] = useState<string>('first-fit');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
@@ -273,6 +280,21 @@ function App() {
     }
   };
 
+  const handleSchedulerChange = async (event: SelectChangeEvent) => {
+    try {
+      const newAlgorithm = event.target.value;
+      await api.setScheduler(newAlgorithm);
+      setSchedulerAlgorithm(newAlgorithm);
+      setSnackbarMessage(`Scheduler changed to ${newAlgorithm}`);
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (err: any) {
+      setSnackbarMessage(err.message || 'Failed to change scheduler');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
   // Show loading state
   if (loading && Object.keys(nodes).length === 0) {
   return (
@@ -307,26 +329,51 @@ function App() {
             <Typography variant="h3" component="h1" sx={{ fontWeight: 'bold', color: 'white' }}>
               Kube-Sim
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="contained"
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <FormControl sx={{ minWidth: 150 }}>
+                <InputLabel id="scheduler-select-label" sx={{ color: 'white' }}>Scheduler</InputLabel>
+                <Select
+                  labelId="scheduler-select-label"
+                  value={schedulerAlgorithm}
+                  label="Scheduler"
+                  onChange={handleSchedulerChange}
+                  sx={{ 
+                    color: 'white',
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'white',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'white',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'white',
+                    },
+                  }}
+                >
+                  <MenuItem value="first-fit">First-Fit</MenuItem>
+                  <MenuItem value="best-fit">Best-Fit</MenuItem>
+                  <MenuItem value="worst-fit">Worst-Fit</MenuItem>
+                </Select>
+              </FormControl>
+              <Button
+                variant="contained"
                 color="primary"
                 startIcon={<AddCircleOutlineIcon />}
                 onClick={handleAddNode}
                 sx={{ fontWeight: 'bold' }}
-            >
-              Add Node
-            </Button>
-            <Button
-              variant="contained"
+              >
+                Add Node
+              </Button>
+              <Button
+                variant="contained"
                 color="secondary"
                 startIcon={<RocketLaunchIcon />}
                 onClick={handleLaunchPod}
                 sx={{ fontWeight: 'bold' }}
-            >
-              Launch Pod
-            </Button>
-          </Box>
+              >
+                Launch Pod
+              </Button>
+            </Box>
           </Box>
         </motion.div>
 
