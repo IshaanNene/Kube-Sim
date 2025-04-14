@@ -103,21 +103,7 @@ const api = {
       }
       throw new Error('Failed to restart pod. Is the API server running?');
     }
-  },
-
-  setScheduler: async (algorithm: string): Promise<void> => {
-    const response = await fetch('http://localhost:8080/scheduler', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ algorithm }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to set scheduler algorithm');
-    }
-  },
+  }
 };
 
 export { api }; 

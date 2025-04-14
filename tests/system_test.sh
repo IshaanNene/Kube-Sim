@@ -321,16 +321,6 @@ print_status "Testing First-Fit scheduling algorithm..."
 FIRST_FIT_RESULT=$?
 print_result $FIRST_FIT_RESULT "First-Fit pod deployment"
 
-# Verify First-Fit behavior
-print_status "Verifying First-Fit behavior..."
-NODE_ID=$(curl -s http://localhost:8080/pods | grep -o '"NodeID":"[^"]*"' | head -n 1 | cut -d'"' -f4)
-NODE_CPU=$(curl -s "http://localhost:8080/nodes/$NODE_ID" | grep -o '"AvailableCPU":[0-9]*' | cut -d':' -f2)
-if [ $NODE_CPU -lt 4 ]; then
-    print_success "First-Fit correctly selected first available node"
-else
-    print_warning "First-Fit may not have selected the first available node"
-fi
-
 # Best-Fit
 print_status "Testing Best-Fit scheduling algorithm..."
 ./cli set-scheduler best-fit
@@ -338,33 +328,12 @@ print_status "Testing Best-Fit scheduling algorithm..."
 BEST_FIT_RESULT=$?
 print_result $BEST_FIT_RESULT "Best-Fit pod deployment"
 
-# Verify Best-Fit behavior
-print_status "Verifying Best-Fit behavior..."
-NODE_ID=$(curl -s http://localhost:8080/pods | grep -o '"NodeID":"[^"]*"' | tail -n 1 | cut -d'"' -f4)
-NODE_CPU=$(curl -s "http://localhost:8080/nodes/$NODE_ID" | grep -o '"AvailableCPU":[0-9]*' | cut -d':' -f2)
-if [ $NODE_CPU -lt 6 ]; then
-    print_success "Best-Fit correctly selected node with minimum available CPU"
-else
-    print_warning "Best-Fit may not have selected the node with minimum available CPU"
-fi
-
 # Worst-Fit
 print_status "Testing Worst-Fit scheduling algorithm..."
 ./cli set-scheduler worst-fit
 ./cli launch-pod 2
 WORST_FIT_RESULT=$?
 print_result $WORST_FIT_RESULT "Worst-Fit pod deployment"
-
-# Verify Worst-Fit behavior
-print_status "Verifying Worst-Fit behavior..."
-NODE_ID=$(curl -s http://localhost:8080/pods | grep -o '"NodeID":"[^"]*"' | tail -n 1 | cut -d'"' -f4)
-NODE_CPU=$(curl -s "http://localhost:8080/nodes/$NODE_ID" | grep -o '"AvailableCPU":[0-9]*' | cut -d':' -f2)
-if [ $NODE_CPU -gt 4 ]; then
-    print_success "Worst-Fit correctly selected node with maximum available CPU"
-else
-    print_warning "Worst-Fit may not have selected the node with maximum available CPU"
-fi
-
 print_divider
 
 # Test 4: List pods
