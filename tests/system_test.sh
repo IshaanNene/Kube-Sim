@@ -391,7 +391,6 @@ if [ ! -z "$HEALTHY_NODE" ]; then
         NODE_RESTART_RESULT=$?
         print_result $NODE_RESTART_RESULT "Node restart operation"
         
-        # Wait for node to be healthy again
         print_status "Waiting for node to recover..."
         sleep 15
     else
@@ -405,9 +404,138 @@ else
 fi
 print_divider
 
-# Print final summary with enhanced styling
+# Function to create a binary rain effect
+binary_rain() {
+    local text="$1"
+    local duration=$2
+    local width=50
+    local chars=("0" "1")
+    
+    for ((i = 0; i < duration; i++)); do
+        printf "${NEON_GREEN}${BOLD}["
+        for ((j = 0; j < width; j++)); do
+            printf "${chars[$RANDOM % 2]}"
+        done
+        printf "]${NC} ${NEON_CYAN}${text}${NC}\r"
+        sleep 0.1
+    done
+    printf "\n"
+}
+
+# Function to create a wave effect
+wave_effect() {
+    local text="$1"
+    local duration=$2
+    local wave_chars=("▁" "▂" "▃" "▄" "▅" "▆" "▇" "█" "▇" "▆" "▅" "▄" "▃" "▂")
+    
+    for ((i = 0; i < duration; i++)); do
+        printf "${NEON_BLUE}${BOLD}["
+        for ((j = 0; j < ${#wave_chars[@]}; j++)); do
+            printf "${wave_chars[($j + i) % ${#wave_chars[@]}]}"
+        done
+        printf "]${NC} ${NEON_CYAN}${text}${NC}\r"
+        sleep 0.1
+    done
+    printf "\n"
+}
+
+# Function to create a pulse effect
+pulse_effect() {
+    local text="$1"
+    local duration=$2
+    local colors=("${NEON_PINK}" "${NEON_BLUE}" "${NEON_GREEN}" "${NEON_YELLOW}" "${NEON_CYAN}")
+    
+    for ((i = 0; i < duration; i++)); do
+        local color=${colors[$((i % ${#colors[@]}))]}
+        printf "${color}${BOLD}[${BLINK}●${NC}${color}]${NC} ${NEON_CYAN}${text}${NC}\r"
+        sleep 0.2
+    done
+    printf "\n"
+}
+
+# Function to create a scanning effect
+scan_effect() {
+    local text="$1"
+    local duration=$2
+    local width=20
+    local scan_char="█"
+    
+    for ((i = 0; i < duration; i++)); do
+        printf "${NEON_GREEN}${BOLD}["
+        for ((j = 0; j < width; j++)); do
+            if [ $j -eq $((i % width)) ]; then
+                printf "${scan_char}"
+            else
+                printf " "
+            fi
+        done
+        printf "]${NC} ${NEON_CYAN}${text}${NC}\r"
+        sleep 0.1
+    done
+    printf "\n"
+}
+
+# Function to create a DNA helix effect
+dna_effect() {
+    local text="$1"
+    local duration=$2
+    local helix_chars=("╱" "╲" "│" "─")
+    
+    for ((i = 0; i < duration; i++)); do
+        printf "${NEON_PURPLE}${BOLD}["
+        for ((j = 0; j < 10; j++)); do
+            printf "${helix_chars[($j + i) % ${#helix_chars[@]}]}"
+        done
+        printf "]${NC} ${NEON_CYAN}${text}${NC}\r"
+        sleep 0.1
+    done
+    printf "\n"
+}
+
+# Function to create a gradient box
+print_gradient_box() {
+    local text="$1"
+    local colors=("${NEON_PINK}" "${NEON_BLUE}" "${NEON_GREEN}" "${NEON_YELLOW}" "${NEON_CYAN}")
+    local text_length=${#text}
+    local box_width=$((text_length + 4))
+    local padding=$(( (TERM_WIDTH - box_width) / 2 ))
+    
+    # Top border with gradient
+    printf "%${padding}s" ''
+    echo -e "${colors[0]}╔$(printf '═%.0s' $(seq 1 $((box_width - 2))))╗${NC}"
+    
+    # Text with gradient
+    printf "%${padding}s" ''
+    echo -e "${colors[1]}║ ${BOLD}${text}${NC}${colors[2]} ║${NC}"
+    
+    # Bottom border with gradient
+    printf "%${padding}s" ''
+    echo -e "${colors[3]}╚$(printf '═%.0s' $(seq 1 $((box_width - 2))))╝${NC}"
+}
+
+# Test 7: Node and Pod Deletion Test
+print_test_header "NODE AND POD DELETION TEST"
+print_gradient_box " TESTING RESOURCE CLEANUP "
+
+# Create test nodes and pods
+print_status "Setting up test environment..."
+wave_effect "Creating test nodes" 3
+FIRST_NODE=$(./cli add-node 4 | grep -o '"nodeId":"[^"]*"' | cut -d'"' -f4)
+SECOND_NODE=$(./cli add-node 6 | grep -o '"nodeId":"[^"]*"' | cut -d'"' -f4)
+
+print_status "Creating test pods..."
+pulse_effect "Launching pods" 3
+FIRST_POD=$(./cli launch-pod 2 | grep -o '"podId":"[^"]*"' | cut -d'"' -f4)
+SECOND_POD=$(./cli launch-pod 3 | grep -o '"podId":"[^"]*"' | cut -d'"' -f4)
+
+# List current state
+print_status "Current cluster state:"
+./cli list-nodes
+./cli list-pods
+
+# Update final summary
 echo
-print_neon_box " TEST SUMMARY " "${NEON_PURPLE}"
+print_gradient_box " FINAL TEST SUMMARY "
 echo
 print_result $NODE1_RESULT "Node deployment (4 cores)"
 print_result $NODE2_RESULT "Node deployment (6 cores)"
@@ -420,10 +548,13 @@ print_result $NODE_FAILURE_RESULT "Node failure simulation"
 print_result $NODE_STOP_RESULT "Node stop operation"
 print_result $NODE_RESTART_RESULT "Node restart operation"
 
-# Cleanup with progress indication
-print_neon_box " CLEANUP SEQUENCE " "${NEON_RED}"
+# Enhanced cleanup sequence
+print_gradient_box " CLEANUP SEQUENCE "
 echo
-simulate_loading "Cleaning up resources" 5
+wave_effect "Initiating cleanup" 3
+pulse_effect "Stopping services" 3
+scan_effect "Removing resources" 3
+dna_effect "Finalizing cleanup" 3
 cleanup
 print_centered "TEST SEQUENCE COMPLETED" "${NEON_GREEN}"
 echo 

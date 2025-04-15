@@ -1,5 +1,5 @@
 # Kube-Sim
-Kube-Sim is a lightweight, simulation-based distributed system that mimics core Kubernetes cluster management functionalities. Built with Go and Docker, it demonstrates key distributed computing concepts such as node addition, pod scheduling, health monitoring, and failure recovery. This project is designed for educational purposes and provides a simplified yet comprehensive platform to explore cluster management.
+Kube-Sim is a lightweight Kubernetes Clone. It is a simulation-based distributed system that mimics the core Kubernetes cluster management functionalities. I Built this project with Go and Docker. This demonstrates the key distributed computing concepts such as node addition, pod scheduling, health monitoring, and failure recovery. This project is designed for educational purposes and provides a simplified yet comprehensive platform to explore cluster management.
 
 ## Weekly Implementation Breakdown
 
@@ -96,68 +96,72 @@ Kube-Sim is a lightweight, simulation-based distributed system that mimics core 
    - Check resource cleanup
    - Verify pod rescheduling (if applicable)
 
-### Pod Scheduling Tests
-1. **First-Fit Scheduling**
+### Pod Management Tests
+1. **Pod Creation and Deletion**
    ```bash
-   ./cli set-scheduler first-fit
+   # Create pods
    ./cli launch-pod 2
    ./cli launch-pod 3
+   
+   # List pods to get IDs
+   ./cli list-pods
+   
+   # Delete a pod
+   ./cli delete-pod <pod-id>
    ```
-   - Verify pods are assigned to first available node
-   - Check CPU allocation
+   - Verify pods are created with correct CPU requirements
+   - Check pod status changes to "Terminated"
+   - Verify pod is removed from node's pod list
+   - Confirm resource cleanup
 
-2. **Best-Fit Scheduling**
+2. **Node Deletion with Pods**
    ```bash
-   ./cli set-scheduler best-fit
-   ./cli launch-pod 2
-   ./cli launch-pod 3
-   ```
-   - Verify pods are assigned to node with smallest available CPU
-   - Check resource utilization
-
-3. **Worst-Fit Scheduling**
-   ```bash
-   ./cli set-scheduler worst-fit
-   ./cli launch-pod 2
-   ./cli launch-pod 3
-   ```
-   - Verify pods are assigned to node with largest available CPU
-   - Check resource distribution
-
-### Health Monitoring Tests
-1. **Heartbeat Verification**
-   ```bash
+   # List nodes to get IDs
    ./cli list-nodes
+   
+   # Delete a node
+   ./cli delete-node <node-id>
    ```
-   - Verify all nodes show "Healthy" status
-   - Check heartbeat timestamps
+   - Verify node is removed from cluster
+   - Check pods are rescheduled to other nodes
+   - Confirm resource cleanup
+   - Verify heartbeat monitoring stops
 
-2. **Failure Simulation**
+3. **Cascading Deletion**
    ```bash
-   docker stop <node-id>
-   # Wait 20 seconds
-   ./cli list-nodes
+   # Delete a node with pods
+   ./cli delete-node <node-id>
+   
+   # Verify pod rescheduling
+   ./cli list-pods
    ```
-   - Verify node status changes to "Failed"
-   - Check pod rescheduling
-   - Verify resource cleanup
+   - Verify pods are automatically rescheduled
+   - Check resource allocation on new nodes
+   - Confirm no resource leaks
 
-### Resource Management Tests
-1. **CPU Allocation**
+### Resource Cleanup Tests
+1. **Multiple Pod Deletion**
    ```bash
-   ./cli add-node 4
+   # Create multiple pods
    ./cli launch-pod 2
    ./cli launch-pod 2
+   ./cli launch-pod 2
+   
+   # Delete all pods
+   ./cli list-pods | grep -o '"ID":"[^"]*"' | cut -d'"' -f4 | xargs -I {} ./cli delete-pod {}
    ```
-   - Verify CPU allocation is correct
-   - Check resource exhaustion handling
+   - Verify all pods are deleted
+   - Check resource cleanup
+   - Confirm node status updates
 
-2. **Resource Exhaustion**
+2. **Node Cleanup**
    ```bash
-   ./cli launch-pod 5
+   # Delete all nodes
+   ./cli list-nodes | grep -o '"ID":"[^"]*"' | cut -d'"' -f4 | xargs -I {} ./cli delete-node {}
    ```
-   - Verify error handling for insufficient resources
-   - Check system stability
+   - Verify all nodes are removed
+   - Check Docker container cleanup
+   - Confirm cluster state is empty
 
 ## Prerequisites
 - **Go**: Version 1.16 or later (install from [golang.org](https://golang.org/dl/))
@@ -263,6 +267,19 @@ cd Kube-Sim
    ./cli list-nodes
    ```
    The stopped node should show as "Failed."
+
+### Resource Cleanup
+```bash
+# Delete a specific pod
+./cli delete-pod <pod-id>
+
+# Delete a specific node
+./cli delete-node <node-id>
+
+# Clean up all resources
+./cli list-pods | grep -o '"ID":"[^"]*"' | cut -d'"' -f4 | xargs -I {} ./cli delete-pod {}
+./cli list-nodes | grep -o '"ID":"[^"]*"' | cut -d'"' -f4 | xargs -I {} ./cli delete-node {}
+```
 
 ## Testing the System
 ### Node Addition Tests

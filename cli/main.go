@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-// Cyberpunk color codes
 const (
 	NEON_PINK   = "\033[38;5;198m"
 	NEON_BLUE   = "\033[38;5;51m"

@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Cyberpunk color codes
 const (
 	NEON_PINK   = "\033[38;5;198m"
 	NEON_BLUE   = "\033[38;5;51m"
@@ -79,7 +78,6 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	fmt.Printf("%s%s[*] %sStarting Kube-Sim API Server...%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
 
-	// Set up routes with CORS
 	mux := http.NewServeMux()
 	mux.HandleFunc("/nodes", enableCORS(handleNodes))
 	mux.HandleFunc("/nodes/", enableCORS(handleNodeOperations))
@@ -198,7 +196,6 @@ func handleStopNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
-	// Stop the Docker container
 	cmd := exec.Command("docker", "stop", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Error stopping node %s: %v\n", nodeID, err)
@@ -229,7 +226,6 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
-	// Stop and remove the Docker container
 	cmd := exec.Command("docker", "rm", "-f", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Error deleting node %s: %v\n", nodeID, err)
@@ -257,7 +253,6 @@ func handlePods(w http.ResponseWriter, r *http.Request) {
 		podsMu.Lock()
 		defer podsMu.Unlock()
 
-		// Create a map with formatted timestamps
 		podsWithFormattedTime := make(map[string]struct {
 			ID          string `json:"ID"`
 			CPURequired int    `json:"CPURequired"`
@@ -483,11 +478,7 @@ func healthMonitor() {
 				node.HealthStatus = "Failed"
 				podsToReschedule := node.Pods
 				node.Pods = []string{}
-
-				// Release the lock before rescheduling
 				nodesMu.Unlock()
-
-				// Reschedule pods from failed node
 				for _, podID := range podsToReschedule {
 					podsMu.Lock()
 					pod := pods[podID]
@@ -511,8 +502,6 @@ func healthMonitor() {
 
 					fmt.Printf("%s%s[✓] %sPod %s rescheduled to node %s%s\n", NEON_GREEN, BOLD, NEON_CYAN, podID[:8], newNodeID[:8], NC)
 				}
-
-				// Reacquire the lock to continue iteration
 				nodesMu.Lock()
 			}
 		}
@@ -550,15 +539,12 @@ func handleDeletePod(w http.ResponseWriter, r *http.Request, podID string) {
 	nodesMu.Lock()
 	node, nodeExists := nodes[pod.NodeID]
 	if nodeExists {
-		// Remove pod from node
 		node.Pods = removeFromSlice(node.Pods, podID)
 		node.AvailableCPU += pod.CPURequired
 		log.Printf("Updated node %s: Available CPU now %d, Pods: %v\n",
 			node.ID, node.AvailableCPU, node.Pods)
 	}
 	nodesMu.Unlock()
-
-	// Delete the pod
 	delete(pods, podID)
 	podsMu.Unlock()
 
@@ -588,12 +574,10 @@ func handleRestartPod(w http.ResponseWriter, r *http.Request, podID string) {
 		return
 	}
 
-	// Simulate pod restart by updating its status
 	podsMu.Lock()
 	pod.Status = "Restarting"
 	podsMu.Unlock()
 
-	// Simulate a delay for restart
 	go func() {
 		time.Sleep(2 * time.Second)
 		podsMu.Lock()
@@ -621,8 +605,7 @@ func handleRestartNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		http.Error(w, "Node not found", http.StatusNotFound)
 		return
 	}
-
-	// Start the Docker container
+	
 	cmd := exec.Command("docker", "start", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Error restarting node %s: %v\n", nodeID, err)
