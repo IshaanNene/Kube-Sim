@@ -3,7 +3,7 @@ Kube-Sim is a lightweight, simulation-based distributed system that mimics core
 Kubernetes cluster management functionalities. The system will create a simplified 
 yet comprehensive platform for demonstrating key distributed computing concepts.
 
-<img width="1920" height="1080" alt="Screenshot 2025-04-15 at 6 42 34 PM" src="https://github.com/user-attachments/assets/45e48f67-a0ab-4ca7-bdcb-95da270d916d" />
+<img width="1080" height="400" alt="Screenshot 2025-04-15 at 6 42 34 PM" src="https://github.com/user-attachments/assets/45e48f67-a0ab-4ca7-bdcb-95da270d916d" />
 
 # Dashboard
 <img width="1202" alt="Screenshot 2025-04-15 at 6 28 23 PM" src="https://github.com/user-attachments/assets/dc9a4fb9-5629-4847-a82b-c91e608325d7" />
