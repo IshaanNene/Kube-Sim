@@ -5,20 +5,33 @@ yet comprehensive platform for demonstrating key distributed computing concepts
 
 # Dashboard
 <img width="1202" alt="Screenshot 2025-04-15 at 6 28 23 PM" src="https://github.com/user-attachments/assets/dc9a4fb9-5629-4847-a82b-c91e608325d7" />
+
 ## Adding a Node
+
 <img width="1332" alt="Screenshot 2025-04-15 at 6 32 41 PM" src="https://github.com/user-attachments/assets/83d03ed8-2f36-465c-a888-f567fdd6c88d" />
+
 ## Adding a Pod
+
 <img width="1321" alt="Screenshot 2025-04-15 at 6 33 12 PM" src="https://github.com/user-attachments/assets/cddc088b-01b5-4534-b6e6-18c29dbce666" />
+
 ## A Working Live Monitor
+
 <img width="978" alt="Screenshot 2025-04-15 at 6 34 29 PM" src="https://github.com/user-attachments/assets/70a7e41d-734c-4b91-8cd5-361059de30b3" />
+
 ## Stopping Node
+
 <img width="1289" alt="Screenshot 2025-04-15 at 6 37 41 PM" src="https://github.com/user-attachments/assets/3559fef6-7d29-41e2-b6c1-bb372e5bfd89" />
 
 # Testing
+
 <img width="430" alt="Screenshot 2025-04-15 at 6 42 34 PM" src="https://github.com/user-attachments/assets/45e48f67-a0ab-4ca7-bdcb-95da270d916d" />
+
 ## Tests
+
 <img width="938" alt="Screenshot 2025-04-15 at 6 45 03 PM" src="https://github.com/user-attachments/assets/1a257994-e94e-4ea9-ba7d-0cf07285c739" />
+
 ## Final Test Summary
+
 <img width="284" alt="Screenshot 2025-04-15 at 6 44 46 PM" src="https://github.com/user-attachments/assets/036303e8-a00a-481a-9c75-f11da9a3fe5d" />
 
 
