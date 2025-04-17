@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Professional cyberpunk color palette
 TERMINAL_GREEN='\033[38;5;70m'
 TERMINAL_CYAN='\033[38;5;51m'
 TERMINAL_BLUE='\033[38;5;33m'
@@ -25,43 +24,39 @@ NEON_PURPLE='\033[38;5;165m'
 NEON_CYAN='\033[38;5;87m'
 NEON_RED='\033[38;5;196m'
 NEON_ORANGE='\033[38;5;214m'
-NEON_BLUE='\033[38;5;33m'      # Bright blue
-ELECTRIC_CYAN='\033[38;5;51m'   # Electric cyan
-DEEP_PURPLE='\033[38;5;93m'     # Deep purple
-VIBRANT_MAGENTA='\033[38;5;201m' # Vibrant magenta
-TERMINAL_CYAN='\033[38;5;87m'   # Terminal cyan
+NEON_BLUE='\033[38;5;33m'      
+ELECTRIC_CYAN='\033[38;5;51m'   
+DEEP_PURPLE='\033[38;5;93m'     
+VIBRANT_MAGENTA='\033[38;5;201m' 
+TERMINAL_CYAN='\033[38;5;87m'   
 RESET='\033[0m'  
-BRIGHT_YELLOW='\033[38;5;226m'  # Bright yellow
-GOLD='\033[38;5;220m'           # Gold
-ORANGE='\033[38;5;208m'         # Orange
-DEEP_ORANGE='\033[38;5;202m'    # Deep orange
-BRIGHT_RED='\033[38;5;196m'     # Bright red
-HEADER_COLOR='\033[38;5;214m'   # Amber (for header)
-RESET='\033[0m'                 # Reset color code
+BRIGHT_YELLOW='\033[38;5;226m'  
+GOLD='\033[38;5;220m'           
+ORANGE='\033[38;5;208m'         
+DEEP_ORANGE='\033[38;5;202m'    
+BRIGHT_RED='\033[38;5;196m'     
+HEADER_COLOR='\033[38;5;214m'   
+RESET='\033[0m'                 
 
-BRIGHT_YELLOW='\033[38;5;226m'  # Bright yellow
-GOLD='\033[38;5;220m'           # Gold
-ORANGE='\033[38;5;208m'         # Orange
-DEEP_ORANGE='\033[38;5;202m'    # Deep orange
-BRIGHT_RED='\033[38;5;196m'     # Bright red
-NC='\033[0m'                    # Reset color code
-BOLD='\033[1m'                  # Bold text
+BRIGHT_YELLOW='\033[38;5;226m'  
+GOLD='\033[38;5;220m'           
+ORANGE='\033[38;5;208m'         
+DEEP_ORANGE='\033[38;5;202m'    
+BRIGHT_RED='\033[38;5;196m'     
+NC='\033[0m'                    
+BOLD='\033[1m'                  
 
-# Base colors
 NC='\033[0m'
 BOLD='\033[1m'
 DIM='\033[2m'
 BLINK='\033[5m'
 UNDERLINE='\033[4m'
 
-# Get terminal width
 TERM_WIDTH=$(tput cols)
 
-# Get the absolute path of the script's directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Function to create a sleek progress bar
 progress_bar() {
     local current=$1
     local total=$2
@@ -77,7 +72,6 @@ progress_bar() {
     printf "${TERMINAL_BLUE}]${INTERFACE_TEXT} %3d%%${NC}" $percentage
 }
 
-# Function to print centered text
 print_centered() {
     local text="$1"
     local color="$2"
@@ -86,7 +80,6 @@ print_centered() {
     echo -e "${color}${text}${NC}"
 }
 
-# Function to print a minimalist box
 print_box() {
     local text="$1"
     local color="$2"
@@ -94,20 +87,16 @@ print_box() {
     local box_width=$((text_length + 4))
     local padding=$(( (TERM_WIDTH - box_width) / 2 ))
     
-    # Create the top border
     printf "%${padding}s" ''
     echo -e "${color}┌$(printf '─%.0s' $(seq 1 $((box_width - 2))))┐${NC}"
     
-    # Add text
     printf "%${padding}s" ''
     echo -e "${color}│ ${BOLD}${text}${NC}${color} │${NC}"
     
-    # Create the bottom border
     printf "%${padding}s" ''
     echo -e "${color}└$(printf '─%.0s' $(seq 1 $((box_width - 2))))┘${NC}"
 }
 
-# Function to print test results with modern styling
 print_result() {
     if [ $1 -eq 0 ]; then
         echo -e "${INTERFACE_SUCCESS}${BOLD}[✓]${NC} ${INTERFACE_TEXT}$2 ${INTERFACE_SUCCESS}[SUCCESS]${NC}"
@@ -116,22 +105,18 @@ print_result() {
     fi
 }
 
-# Function to print status messages with modern styling
 print_status() {
     echo -e "${TERMINAL_BLUE}${BOLD}[*]${NC} ${INTERFACE_TEXT}$1${NC}"
 }
 
-# Function to print warning messages with modern styling
 print_warning() {
     echo -e "${INTERFACE_WARNING}${BOLD}[!]${NC} ${INTERFACE_WARNING}$1${NC}"
 }
 
-# Function to print success messages with modern styling
 print_success() {
     echo -e "${INTERFACE_SUCCESS}${BOLD}[+]${NC} ${INTERFACE_TEXT}$1${NC}"
 }
 
-# Function to print error messages with modern styling
 print_error() {
     echo -e "${INTERFACE_ERROR}${BOLD}[-]${NC} ${TERMINAL_MAGENTA}$1${NC}"
 }
@@ -154,14 +139,12 @@ print_banner() {
     echo
 }
 
-# Function to print section divider
 print_divider() {
     echo
     print_centered "──────────────────────────────────────" "${TERMINAL_BLUE}"
     echo
 }
 
-# Function to simulate loading animation
 simulate_loading() {
     local text="$1"
     local duration=$2
@@ -179,7 +162,6 @@ simulate_loading() {
     printf "\n"
 }
 
-# Function to check if Docker is running
 check_docker() {
     print_status "Initializing Docker connection..."
     simulate_loading "Establishing connection to Docker daemon" 5
@@ -190,7 +172,6 @@ check_docker() {
     print_success "Docker daemon connection established"
 }
 
-# Function to kill any existing API server
 kill_existing_api() {
     print_status "Checking for existing API server instances..."
     if lsof -i :8080 > /dev/null; then
@@ -201,7 +182,6 @@ kill_existing_api() {
     fi
 }
 
-# Function to wait for API server with improved timeout
 wait_for_api() {
     local max_attempts=60
     local attempt=1
@@ -221,7 +201,6 @@ wait_for_api() {
     return 1
 }
 
-# Function to wait for node deletion with exponential backoff
 wait_for_node_deletion() {
     local node_id=$1
     local max_attempts=45
@@ -243,23 +222,26 @@ wait_for_node_deletion() {
 # Function to wait for pod deletion with exponential backoff
 wait_for_pod_deletion() {
     local pod_id=$1
-    local max_attempts=45
+    local max_attempts=10  # Reduced number of attempts
     local attempt=1
     local wait_time=1
 
     while [ $attempt -le $max_attempts ]; do
-        if ! curl -s "http://localhost:8080/pods/$pod_id" > /dev/null 2>&1; then
+        # Check if pod still exists by trying to get its status
+        local http_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/pods/$pod_id")
+        if [ "$http_code" = "404" ]; then
+            print_success "Pod $pod_id successfully deleted"
             return 0
         fi
         print_status "Waiting for pod deletion (attempt $attempt/$max_attempts)..."
         sleep $wait_time
-        wait_time=$(( wait_time * 2 ))
+        wait_time=2  # Fixed wait time instead of exponential
         attempt=$(( attempt + 1 ))
     done
+    print_error "Timeout waiting for pod $pod_id to be deleted"
     return 1
 }
 
-# Function to make API calls with timeout
 make_api_call() {
     local url=$1
     local method=${2:-GET}
@@ -271,23 +253,16 @@ make_api_call() {
     return 0
 }
 
-# Function to clean up resources
 cleanup() {
     print_status "Initiating cleanup sequence..."
-    # Stop all node containers
     docker ps -a --filter "name=node-" -q | xargs -r docker stop
     docker ps -a --filter "name=node-" -q | xargs -r docker rm
-    # Kill API server if running
     pkill -f "./api-server" || true
     print_success "Cleanup completed"
 }
 
-# Set up trap for cleanup
 trap cleanup EXIT
 
-# Modern visual effects
-
-# Function to create a binary rain effect
 binary_rain() {
     local text="$1"
     local duration=$2
@@ -305,7 +280,6 @@ binary_rain() {
     printf "\n"
 }
 
-# Function to create a wave effect
 wave_effect() {
     local text="$1"
     local duration=$2
@@ -322,7 +296,6 @@ wave_effect() {
     printf "\n"
 }
 
-# Function to create a pulse effect
 pulse_effect() {
     local text="$1"
     local duration=$2
@@ -336,7 +309,6 @@ pulse_effect() {
     printf "\n"
 }
 
-# Function to create a scanning effect
 scan_effect() {
     local text="$1"
     local duration=$2
@@ -358,7 +330,6 @@ scan_effect() {
     printf "\n"
 }
 
-# Function to create a data visualization effect
 data_effect() {
     local text="$1"
     local duration=$2
@@ -383,39 +354,31 @@ print_gradient_box() {
     local TERM_WIDTH=$(tput cols)
     local padding=$(( (TERM_WIDTH - box_width) / 2 ))
     
-    # Top border with gradient
     printf "%${padding}s" ''
     echo -e "${colors[0]}┌$(printf '─%.0s' $(seq 1 $((box_width - 2))))┐${NC}"
     
-    # Text with gradient
     printf "%${padding}s" ''
     echo -e "${colors[2]}│ ${BOLD}${text}${NC}${colors[2]} │${NC}"
     
-    # Bottom border with gradient
     printf "%${padding}s" ''
     echo -e "${colors[4]}└$(printf '─%.0s' $(seq 1 $((box_width - 2))))┘${NC}"
 }
-# Main test sequence
+
 print_banner
 
-# Initialize test environment
 print_box " INITIALIZING TEST ENVIRONMENT " "${INTERFACE_HEADER}"
 echo
 
-# Check Docker
 check_docker
 
-# Kill existing API server
 kill_existing_api
 
-# Start API server with progress indication
 print_status "Launching API server..."
 cd "$PROJECT_ROOT/api-server" || { print_error "Failed to change to api-server directory"; exit 1; }
 go build -o api-server || { print_error "Failed to build api-server"; exit 1; }
 ./api-server &
 API_PID=$!
 
-# Wait for API server with progress bar
 for i in {1..10}; do
     progress_bar $i 10
     echo -en "\r"
@@ -423,7 +386,6 @@ for i in {1..10}; do
 done
 echo
 
-# Test 1: Add nodes
 print_gradient_box "NODE DEPLOYMENT TEST"
 cd "$PROJECT_ROOT/cli" || { print_error "Failed to change to cli directory"; exit 1; }
 ./cli add-node 4
@@ -434,31 +396,26 @@ print_result $NODE1_RESULT "Node deployment (4 cores)"
 print_result $NODE2_RESULT "Node deployment (6 cores)"
 print_divider
 
-# Test 2: List nodes
 print_gradient_box "NODE STATUS CHECK"
 ./cli list-nodes
 LIST_NODES_RESULT=$?
 print_result $LIST_NODES_RESULT "Node status retrieval"
 print_divider
 
-# Test 3: Launch pods with different scheduling algorithms
 print_gradient_box "POD SCHEDULING ALGORITHM TEST"
 
-# First-Fit
 print_status "Testing First-Fit scheduling algorithm..."
 ./cli set-scheduler first-fit
 ./cli launch-pod 2
 FIRST_FIT_RESULT=$?
 print_result $FIRST_FIT_RESULT "First-Fit pod deployment"
 
-# Best-Fit
 print_status "Testing Best-Fit scheduling algorithm..."
 ./cli set-scheduler best-fit
 ./cli launch-pod 3
 BEST_FIT_RESULT=$?
 print_result $BEST_FIT_RESULT "Best-Fit pod deployment"
 
-# Worst-Fit
 print_status "Testing Worst-Fit scheduling algorithm..."
 ./cli set-scheduler worst-fit
 ./cli launch-pod 2
@@ -466,14 +423,12 @@ WORST_FIT_RESULT=$?
 print_result $WORST_FIT_RESULT "Worst-Fit pod deployment"
 print_divider
 
-# Test 4: List pods
 print_gradient_box "POD STATUS CHECK"
 ./cli list-pods
 LIST_PODS_RESULT=$?
 print_result $LIST_PODS_RESULT "Pod status retrieval"
 print_divider
 
-# Test 5: Node failure simulation
 print_gradient_box "NODE FAILURE SIMULATION"
 NODE_ID=$(docker ps --filter "name=node-" --filter "status=running" --format "{{.ID}}" | head -n 1)
 if [ ! -z "$NODE_ID" ]; then
@@ -491,41 +446,100 @@ else
 fi
 print_divider
 
+# Function to get node status
+get_node_status() {
+    local node_id=$1
+    local status=$(curl -s "http://localhost:8080/nodes" | jq -r ".[\"$node_id\"].HealthStatus")
+    echo "$status"
+}
+
+# Function to wait for node status with timeout
+wait_for_node_status() {
+    local node_id=$1
+    local expected_status=$2
+    local max_attempts=30
+    local attempt=1
+    local wait_time=1
+
+    while [ $attempt -le $max_attempts ]; do
+        local status=$(get_node_status "$node_id")
+        if [ "$status" = "$expected_status" ]; then
+            return 0
+        fi
+        print_status "Waiting for node $node_id to reach status $expected_status (attempt $attempt/$max_attempts)..."
+        sleep $wait_time
+        wait_time=$(( wait_time < 4 ? wait_time * 2 : 4 ))
+        attempt=$(( attempt + 1 ))
+    done
+    return 1
+}
+
 # Test 6: Node Operations
 print_gradient_box "NODE OPERATIONS TEST"
+
 # Get a healthy node ID
-HEALTHY_NODE=$(curl -s --connect-timeout 10 --max-time 10 http://localhost:8080/nodes | grep -o '"ID":"[^"]*"' | head -n 1 | cut -d'"' -f4)
+HEALTHY_NODE=$(curl -s --connect-timeout 10 --max-time 10 http://localhost:8080/nodes | jq -r 'to_entries | map(select(.value.HealthStatus == "Healthy")) | .[0].key')
 if [ ! -z "$HEALTHY_NODE" ]; then
     # First, delete all pods on the node
     print_status "Removing pods from node before operations..."
-    POD_IDS=$(curl -s --connect-timeout 10 --max-time 10 http://localhost:8080/pods | grep -o '"ID":"[^"]*"' | cut -d'"' -f4)
+    POD_IDS=$(curl -s --connect-timeout 10 --max-time 10 http://localhost:8080/pods | jq -r "to_entries | map(select(.value.NodeID == \"$HEALTHY_NODE\")) | .[].key")
     for POD_ID in $POD_IDS; do
         ./cli delete-pod $POD_ID
-        sleep 2
+        wait_for_pod_deletion "$POD_ID"
     done
     
-    # Test node stop
-    print_status "Testing node stop operation..."
-    ./cli stop-node $HEALTHY_NODE
-    NODE_STOP_RESULT=$?
-    if [ $NODE_STOP_RESULT -eq 0 ]; then
-        print_result 0 "Node stop operation"
-        
-        # Wait for node to be stopped
-        print_status "Waiting for node to stop..."
-        sleep 10
-        
-        # Test node restart
-        print_status "Testing node restart operation..."
-        ./cli restart-node $HEALTHY_NODE
-        NODE_RESTART_RESULT=$?
-        print_result $NODE_RESTART_RESULT "Node restart operation"
-        
-        print_status "Waiting for node to recover..."
-        sleep 15
-    else
-        print_result 1 "Node stop operation"
+    # Verify node is in Healthy state before proceeding
+    INITIAL_STATUS=$(get_node_status "$HEALTHY_NODE")
+    if [ "$INITIAL_STATUS" != "Healthy" ]; then
+        print_error "Node is not in Healthy state before operations"
+        NODE_STOP_RESULT=1
         NODE_RESTART_RESULT=1
+    else
+        # Test node stop
+        print_status "Testing node stop operation..."
+        ./cli stop-node $HEALTHY_NODE
+        NODE_STOP_RESULT=$?
+        
+        if [ $NODE_STOP_RESULT -eq 0 ]; then
+            # Wait for node to be marked as stopped
+            if wait_for_node_status "$HEALTHY_NODE" "Stopped"; then
+                print_result 0 "Node stop operation"
+                
+                # Give some time for the node to fully stop
+                sleep 5
+                
+                # Test node restart
+                print_status "Testing node restart operation..."
+                ./cli restart-node $HEALTHY_NODE
+                NODE_RESTART_RESULT=$?
+                
+                if [ $NODE_RESTART_RESULT -eq 0 ]; then
+                    # First wait for Starting status
+                    if wait_for_node_status "$HEALTHY_NODE" "Starting"; then
+                        print_status "Node entered Starting state, waiting for Healthy state..."
+                        # Then wait for Healthy status
+                        if wait_for_node_status "$HEALTHY_NODE" "Healthy"; then
+                            print_result 0 "Node restart operation"
+                        else
+                            print_result 1 "Node restart operation (failed to become healthy)"
+                            NODE_RESTART_RESULT=1
+                        fi
+                    else
+                        print_result 1 "Node restart operation (failed to enter starting state)"
+                        NODE_RESTART_RESULT=1
+                    fi
+                else
+                    print_result 1 "Node restart operation (command failed)"
+                fi
+            else
+                print_result 1 "Node stop operation (failed to reach stopped state)"
+                NODE_STOP_RESULT=1
+                NODE_RESTART_RESULT=1
+            fi
+        else
+            print_result 1 "Node stop operation (command failed)"
+            NODE_RESTART_RESULT=1
+        fi
     fi
 else
     print_error "No healthy node found for operations test"
@@ -534,11 +548,9 @@ else
 fi
 print_divider
 
-# Test 7: Node and Pod Deletion Test
 print_gradient_box "NODE AND POD DELETION TEST"
 print_gradient_box " TESTING RESOURCE CLEANUP "
 
-# Create test nodes and pods
 print_status "Setting up test environment..."
 wave_effect "Creating test nodes" 3
 FIRST_NODE=$(./cli add-node 4 | grep -o '"nodeId":"[^"]*"' | cut -d'"' -f4)
@@ -549,12 +561,10 @@ pulse_effect "Launching pods" 3
 FIRST_POD=$(./cli launch-pod 2 | grep -o '"podId":"[^"]*"' | cut -d'"' -f4)
 SECOND_POD=$(./cli launch-pod 3 | grep -o '"podId":"[^"]*"' | cut -d'"' -f4)
 
-# List current state
 print_status "Current cluster state:"
 ./cli list-nodes
 ./cli list-pods
 
-# Update final summary
 echo
 print_gradient_box " FINAL TEST SUMMARY "
 echo
@@ -569,7 +579,6 @@ print_result $NODE_FAILURE_RESULT "Node failure simulation"
 print_result $NODE_STOP_RESULT "Node stop operation"
 print_result $NODE_RESTART_RESULT "Node restart operation"
 
-# Enhanced cleanup sequence
 print_gradient_box " CLEANUP SEQUENCE "
 echo
 wave_effect "Initiating cleanup" 3
