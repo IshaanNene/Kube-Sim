@@ -193,12 +193,12 @@ func main() {
 	case "set-scheduler":
 		if len(os.Args) != 3 {
 			fmt.Printf("%s%s[!] %sUsage: cli set-scheduler <algorithm>%s\n", NEON_YELLOW, BOLD, NEON_ORANGE, NC)
-			fmt.Printf("%s%s[!] %sAvailable algorithms: first-fit, best-fit, worst-fit%s\n", NEON_YELLOW, BOLD, NEON_ORANGE, NC)
+			fmt.Printf("%s%s[!] %sAvailable algorithms: first-fit, best-fit, worst-fit, round-robin%s\n", NEON_YELLOW, BOLD, NEON_ORANGE, NC)
 			os.Exit(1)
 		}
 		algorithm := os.Args[2]
-		if algorithm != "first-fit" && algorithm != "best-fit" && algorithm != "worst-fit" {
-			fmt.Printf("%s%s[!] %sInvalid algorithm. Must be one of: first-fit, best-fit, worst-fit%s\n", NEON_YELLOW, BOLD, NEON_ORANGE, NC)
+		if algorithm != "first-fit" && algorithm != "best-fit" && algorithm != "worst-fit" && algorithm != "round-robin" {
+			fmt.Printf("%s%s[!] %sInvalid algorithm. Must be one of: first-fit, best-fit, worst-fit, round-robin%s\n", NEON_YELLOW, BOLD, NEON_ORANGE, NC)
 			os.Exit(1)
 		}
 		req := map[string]string{"algorithm": algorithm}
@@ -275,5 +275,5 @@ func printUsage() {
 	fmt.Printf("%s%s[*] %s  launch-pod <cpuRequired> Launch a pod with specified CPU requirements%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
 	fmt.Printf("%s%s[*] %s  list-nodes              List all nodes with their health status%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
 	fmt.Printf("%s%s[*] %s  list-pods               List all pods with their details%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
-	fmt.Printf("%s%s[*] %s  set-scheduler <algorithm> Change the scheduling algorithm (first-fit, best-fit, worst-fit)%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
+	fmt.Printf("%s%s[*] %s  set-scheduler <algorithm> Change the scheduling algorithm (first-fit, best-fit, worst-fit, round-robin)%s\n", NEON_BLUE, BOLD, NEON_CYAN, NC)
 }

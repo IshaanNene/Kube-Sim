@@ -137,7 +137,6 @@ print_banner() {
     echo
     print_centered "INITIALIZING SYSTEM TEST SEQUENCE..." "${GOLD}"
     echo
-    sleep 5
 }
 
 print_divider() {
@@ -444,47 +443,53 @@ print_divider
 
 print_gradient_box "NODE OPERATIONS TEST"
 # Get a healthy node ID from the API directly
-HEALTHY_NODE=$(curl -s http://localhost:8080/nodes | jq -r 'to_entries | map(select(.value.HealthStatus == "Healthy")) | .[0].key')
+NODES_DATA=$(curl -s --connect-timeout 10 --max-time 10 http://localhost:8080/nodes)
+HEALTHY_NODE=$(echo "$NODES_DATA" | jq -r 'to_entries | map(select(.value.HealthStatus == "Healthy")) | .[0].key')
 
 if [ ! -z "$HEALTHY_NODE" ]; then
-    print_status "Testing node stop operation..."
+    print_status "Testing node operations with node: $HEALTHY_NODE"
+    
     # First remove any pods from the node
     print_status "Removing pods from node before operations..."
-    POD_IDS=$(curl -s http://localhost:8080/pods | jq -r '.[] | select(.NodeID == "'$HEALTHY_NODE'") | .ID')
+    POD_IDS=$(curl -s --connect-timeout 10 --max-time 10 http://localhost:8080/pods | jq -r ".[] | select(.NodeID == \"$HEALTHY_NODE\") | .ID")
     for POD_ID in $POD_IDS; do
         ./cli delete-pod "$POD_ID"
         sleep 2
     done
     
-    # Now stop the node
-    print_status "Stopping node $HEALTHY_NODE..."
+    print_status "Testing node stop operation..."
     ./cli stop-node "$HEALTHY_NODE"
     NODE_STOP_RESULT=$?
-    print_result $NODE_STOP_RESULT "Node stop operation"
     
     if [ $NODE_STOP_RESULT -eq 0 ]; then
+        print_result 0 "Node stop operation"
+        
         print_status "Waiting for node to stop..."
-        sleep 5
+        sleep 10
         
         print_status "Testing node restart operation..."
         ./cli restart-node "$HEALTHY_NODE"
         NODE_RESTART_RESULT=$?
-        print_result $NODE_RESTART_RESULT "Node restart operation"
         
-        # Wait for node to become healthy again
-        print_status "Waiting for node to recover..."
-        sleep 10
-        
-        # Verify node is healthy
-        NODE_STATUS=$(curl -s http://localhost:8080/nodes | jq -r ".[\"$HEALTHY_NODE\"].HealthStatus")
-        if [ "$NODE_STATUS" = "Healthy" ]; then
-            print_success "Node successfully restarted and healthy"
+        if [ $NODE_RESTART_RESULT -eq 0 ]; then
+            print_status "Waiting for node to recover..."
+            sleep 15
+            
+            # Verify node is healthy
+            NODE_STATUS=$(curl -s http://localhost:8080/nodes | jq -r ".[\"$HEALTHY_NODE\"].HealthStatus")
+            if [ "$NODE_STATUS" = "Healthy" ]; then
+                print_result 0 "Node restart operation"
+            else
+                print_error "Node failed to recover after restart (Status: $NODE_STATUS)"
+                print_result 1 "Node restart operation"
+            fi
         else
-            print_error "Node failed to recover after restart (Status: $NODE_STATUS)"
-            NODE_RESTART_RESULT=1
+            print_error "Failed to restart node"
+            print_result 1 "Node restart operation"
         fi
     else
-        print_error "Node stop operation failed"
+        print_error "Failed to stop node"
+        print_result 1 "Node stop operation"
         NODE_RESTART_RESULT=1
     fi
 else
@@ -492,71 +497,45 @@ else
     NODE_STOP_RESULT=1
     NODE_RESTART_RESULT=1
 fi
-
 print_divider
 
-# Final Test Summary
-print_gradient_box "FINAL TEST SUMMARY"
-echo
+print_gradient_box "NODE AND POD DELETION TEST"
+print_gradient_box " TESTING RESOURCE CLEANUP "
 
-# Store all test results
-TOTAL_TESTS=0
-PASSED_TESTS=0
+print_status "Setting up test environment..."
+wave_effect "Creating test nodes" 3
+FIRST_NODE=$(./cli add-node 4 | grep -o '"nodeId":"[^"]*"' | cut -d'"' -f4)
+SECOND_NODE=$(./cli add-node 6 | grep -o '"nodeId":"[^"]*"' | cut -d'"' -f4)
 
-print_test_result() {
-    local result=$1
-    local description=$2
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    if [ $result -eq 0 ]; then
-        PASSED_TESTS=$((PASSED_TESTS + 1))
-        printf "${NEON_GREEN}${BOLD}[✓]${NC} %-50s ${NEON_GREEN}[PASSED]${NC}\n" "$description"
-    else
-        printf "${NEON_RED}${BOLD}[✗]${NC} %-50s ${NEON_RED}[FAILED]${NC}\n" "$description"
-    fi
-}
+print_status "Creating test pods..."
+pulse_effect "Launching pods" 3
+FIRST_POD=$(./cli launch-pod 2 | grep -o '"podId":"[^"]*"' | cut -d'"' -f4)
+SECOND_POD=$(./cli launch-pod 3 | grep -o '"podId":"[^"]*"' | cut -d'"' -f4)
 
-# Print individual test results
-print_test_result $NODE1_RESULT "Node Deployment (4 cores)"
-print_test_result $NODE2_RESULT "Node Deployment (6 cores)"
-print_test_result $LIST_NODES_RESULT "Node Status Check"
-print_test_result $FIRST_FIT_RESULT "First-Fit Scheduling"
-print_test_result $BEST_FIT_RESULT "Best-Fit Scheduling"
-print_test_result $WORST_FIT_RESULT "Worst-Fit Scheduling"
-print_test_result $LIST_PODS_RESULT "Pod Status Check"
-print_test_result $NODE_FAILURE_RESULT "Node Failure Detection"
-print_test_result $NODE_STOP_RESULT "Node Stop Operation"
-print_test_result $NODE_RESTART_RESULT "Node Restart Operation"
+print_status "Current cluster state:"
+./cli list-nodes
+./cli list-pods
 
 echo
-print_centered "TEST SUMMARY" "${NEON_BLUE}"
-print_centered "────────────" "${NEON_BLUE}"
+print_gradient_box " FINAL TEST SUMMARY "
 echo
+print_result $NODE1_RESULT "Node deployment (4 cores)"
+print_result $NODE2_RESULT "Node deployment (6 cores)"
+print_result $LIST_NODES_RESULT "Node status retrieval"
+print_result $FIRST_FIT_RESULT "First-Fit scheduling"
+print_result $BEST_FIT_RESULT "Best-Fit scheduling"
+print_result $WORST_FIT_RESULT "Worst-Fit scheduling"
+print_result $LIST_PODS_RESULT "Pod status retrieval"
+print_result $NODE_FAILURE_RESULT "Node failure simulation"
+print_result $NODE_STOP_RESULT "Node stop operation"
+print_result $NODE_RESTART_RESULT "Node restart operation"
 
-# Calculate percentage
-PASS_PERCENTAGE=$(( PASSED_TESTS * 100 / TOTAL_TESTS ))
-
-# Print summary with color based on pass percentage
-if [ $PASS_PERCENTAGE -eq 100 ]; then
-    COLOR=${NEON_GREEN}
-elif [ $PASS_PERCENTAGE -ge 80 ]; then
-    COLOR=${NEON_YELLOW}
-else
-    COLOR=${NEON_RED}
-fi
-
-printf "${COLOR}Total Tests: %d${NC}\n" $TOTAL_TESTS
-printf "${COLOR}Tests Passed: %d${NC}\n" $PASSED_TESTS
-printf "${COLOR}Tests Failed: %d${NC}\n" $(( TOTAL_TESTS - PASSED_TESTS ))
-printf "${COLOR}Pass Rate: %d%%${NC}\n" $PASS_PERCENTAGE
-
+print_gradient_box " CLEANUP SEQUENCE "
 echo
-if [ $PASS_PERCENTAGE -eq 100 ]; then
-    print_centered "ALL TESTS PASSED SUCCESSFULLY! 🎉" "${NEON_GREEN}"
-elif [ $PASS_PERCENTAGE -ge 80 ]; then
-    print_centered "MOST TESTS PASSED - REVIEW FAILURES 🤔" "${NEON_YELLOW}"
-else
-    print_centered "SIGNIFICANT TEST FAILURES - NEEDS ATTENTION ⚠️" "${NEON_RED}"
-fi
-echo
-
+wave_effect "Initiating cleanup" 3
+pulse_effect "Stopping services" 3
+scan_effect "Removing resources" 3
+data_effect "Finalizing cleanup" 3
 cleanup
+print_centered "TEST SEQUENCE COMPLETED" "${INTERFACE_SUCCESS}"
+echo

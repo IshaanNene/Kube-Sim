@@ -408,8 +408,6 @@ func handleScheduler(w http.ResponseWriter, r *http.Request) {
 		"best-fit":    true,
 		"worst-fit":   true,
 		"round-robin": true,
-		"most-pods":   true,
-		"least-pods":  true,
 	}
 
 	if !validAlgorithms[req.Algorithm] {
@@ -435,10 +433,6 @@ func schedulePod(cpuRequired int) (string, error) {
 		return worstFitScheduling(cpuRequired)
 	case "round-robin":
 		return roundRobinScheduling(cpuRequired)
-	case "most-pods":
-		return mostPodsScheduling(cpuRequired)
-	case "least-pods":
-		return leastPodsScheduling(cpuRequired)
 	default:
 		return firstFitScheduling(cpuRequired)
 	}
@@ -538,56 +532,6 @@ func roundRobinScheduling(cpuRequired int) (string, error) {
 	selectedNode := eligibleNodes[totalPods%len(eligibleNodes)]
 	log.Printf("Round-Robin: Selected node %s with %d available CPU cores",
 		selectedNode, nodes[selectedNode].AvailableCPU)
-	return selectedNode, nil
-}
-
-func mostPodsScheduling(cpuRequired int) (string, error) {
-	log.Printf("Most-Pods scheduling: Looking for node with %d CPU cores", cpuRequired)
-
-	var selectedNode string
-	maxPods := -1
-
-	for nodeID, node := range nodes {
-		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
-			if len(node.Pods) > maxPods {
-				selectedNode = nodeID
-				maxPods = len(node.Pods)
-			}
-		}
-	}
-
-	if selectedNode == "" {
-		log.Printf("Most-Pods: No suitable node found for %d CPU cores", cpuRequired)
-		return "", fmt.Errorf("no available node with sufficient CPU")
-	}
-
-	log.Printf("Most-Pods: Selected node %s with %d pods",
-		selectedNode, len(nodes[selectedNode].Pods))
-	return selectedNode, nil
-}
-
-func leastPodsScheduling(cpuRequired int) (string, error) {
-	log.Printf("Least-Pods scheduling: Looking for node with %d CPU cores", cpuRequired)
-
-	var selectedNode string
-	minPods := int(^uint(0) >> 1) // Max int
-
-	for nodeID, node := range nodes {
-		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
-			if len(node.Pods) < minPods {
-				selectedNode = nodeID
-				minPods = len(node.Pods)
-			}
-		}
-	}
-
-	if selectedNode == "" {
-		log.Printf("Least-Pods: No suitable node found for %d CPU cores", cpuRequired)
-		return "", fmt.Errorf("no available node with sufficient CPU")
-	}
-
-	log.Printf("Least-Pods: Selected node %s with %d pods",
-		selectedNode, len(nodes[selectedNode].Pods))
 	return selectedNode, nil
 }
 
