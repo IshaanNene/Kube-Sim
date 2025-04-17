@@ -1,10 +1,19 @@
 import React from 'react';
-import { Box, Typography, Chip, LinearProgress, useTheme } from '@mui/material';
+import {
+  Paper,
+  Typography,
+  Box,
+  Button,
+  LinearProgress,
+  Tooltip,
+  Chip,
+  Grid,
+} from '@mui/material';
+import StopIcon from '@mui/icons-material/Stop';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { motion } from 'framer-motion';
 import { Node } from '../types';
-import MemoryIcon from '@mui/icons-material/Memory';
-import StorageIcon from '@mui/icons-material/Storage';
-import SpeedIcon from '@mui/icons-material/Speed';
 
 interface NodeVisualizationProps {
   node: Node;
@@ -19,22 +28,23 @@ const NodeVisualization: React.FC<NodeVisualizationProps> = ({
   onRestart,
   onDelete,
 }) => {
-  const theme = useTheme();
-  
   // Calculate CPU usage percentage
   const cpuUsagePercent = ((node.CPUCores - node.AvailableCPU) / node.CPUCores) * 100;
-  
-  // Get health status color
-  const getHealthColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'healthy':
-        return theme.palette.success.main;
-      case 'failed':
-        return theme.palette.error.main;
-      case 'stopped':
-        return theme.palette.warning.main;
+  const cpuUsed = node.CPUCores - node.AvailableCPU;
+
+  // Determine status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Healthy':
+        return '#4caf50';
+      case 'Failed':
+        return '#f44336';
+      case 'Starting':
+        return '#ff9800';
+      case 'Stopped':
+        return '#9e9e9e';
       default:
-        return theme.palette.info.main;
+        return '#9e9e9e';
     }
   };
 
@@ -43,171 +53,132 @@ const NodeVisualization: React.FC<NodeVisualizationProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.3 }}
     >
-      <Box
+      <Paper
         sx={{
-          position: 'relative',
-          borderRadius: 3,
-          overflow: 'hidden',
+          p: 3,
           mb: 2,
-          '&:before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
-            zIndex: -1,
-          },
-          '&:after': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${getHealthColor(node.HealthStatus)}, transparent)`,
-            animation: 'pulse 2s infinite',
-          },
+          background: 'rgba(30, 30, 30, 0.9)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 2,
         }}
       >
-        <Box
-          sx={{
-            p: 3,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          {/* Node header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <MemoryIcon sx={{ color: theme.palette.primary.main }} />
-              <Typography variant="h6" component="div">
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
                 Node {node.ID.substring(0, 8)}
               </Typography>
-            </Box>
-            <Chip
-              label={node.HealthStatus}
-              color={
-                node.HealthStatus.toLowerCase() === 'healthy'
-                  ? 'success'
-                  : node.HealthStatus.toLowerCase() === 'failed'
-                  ? 'error'
-                  : 'warning'
-              }
-              sx={{ fontWeight: 'bold' }}
-            />
-          </Box>
-
-          {/* CPU usage */}
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <SpeedIcon sx={{ color: theme.palette.primary.main, fontSize: '1rem' }} />
-                <Typography variant="body2">CPU Usage</Typography>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Chip
+                  label={node.HealthStatus}
+                  size="small"
+                  sx={{
+                    bgcolor: getStatusColor(node.HealthStatus),
+                    color: 'white',
+                  }}
+                />
+                <Chip
+                  label={`${node.Pods.length} Pods`}
+                  size="small"
+                  color="primary"
+                />
               </Box>
-              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                {cpuUsagePercent.toFixed(1)}%
+            </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                CPU Usage: {cpuUsed} / {node.CPUCores} cores ({cpuUsagePercent.toFixed(1)}%)
+              </Typography>
+              <Tooltip title={`${cpuUsagePercent.toFixed(1)}% CPU Used`}>
+                <LinearProgress
+                  variant="determinate"
+                  value={cpuUsagePercent}
+                  sx={{
+                    height: 10,
+                    borderRadius: 5,
+                    bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor: cpuUsagePercent > 90 ? '#f44336' : '#4caf50',
+                    },
+                  }}
+                />
+              </Tooltip>
+            </Box>
+
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Available CPU: {node.AvailableCPU} cores
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Used CPU: {cpuUsed} cores
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Total CPU: {node.CPUCores} cores
               </Typography>
             </Box>
-            <LinearProgress
-              variant="determinate"
-              value={cpuUsagePercent}
-              sx={{
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: theme.palette.background.paper,
-                '& .MuiLinearProgress-bar': {
-                  borderRadius: 4,
-                  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                },
-              }}
-            />
-          </Box>
+          </Grid>
 
-          {/* Pods */}
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <StorageIcon sx={{ color: theme.palette.primary.main, fontSize: '1rem' }} />
-              <Typography variant="body2">Pods</Typography>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                Pod IDs:
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {node.Pods.length > 0 ? (
+                  node.Pods.map((podId) => (
+                    <Chip
+                      key={podId}
+                      label={podId.substring(0, 8)}
+                      size="small"
+                      sx={{ bgcolor: 'rgba(63, 81, 181, 0.2)' }}
+                    />
+                  ))
+                ) : (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    No pods running
+                  </Typography>
+                )}
+              </Box>
             </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {node.Pods.length > 0 ? (
-                node.Pods.map((pod) => (
-                  <Chip
-                    key={pod}
-                    label={pod.substring(0, 8)}
-                    size="small"
-                    sx={{
-                      backgroundColor: theme.palette.primary.dark,
-                      color: theme.palette.primary.contrastText,
-                    }}
-                  />
-                ))
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  No pods running
-                </Typography>
-              )}
-            </Box>
-          </Box>
 
-          {/* Actions */}
-          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onStop}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.palette.warning.main}`,
-                color: theme.palette.warning.main,
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              Stop
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onRestart}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.palette.info.main}`,
-                color: theme.palette.info.main,
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              Restart
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onDelete}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.palette.error.main}`,
-                color: theme.palette.error.main,
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              Delete
-            </motion.button>
-          </Box>
-        </Box>
-      </Box>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                startIcon={<StopIcon />}
+                onClick={onStop}
+                disabled={node.HealthStatus === 'Stopped'}
+              >
+                Stop
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="info"
+                startIcon={<RestartAltIcon />}
+                onClick={onRestart}
+                disabled={node.HealthStatus === 'Starting'}
+              >
+                Restart
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={onDelete}
+                disabled={node.Pods.length > 0}
+              >
+                Delete
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
     </motion.div>
   );
 };

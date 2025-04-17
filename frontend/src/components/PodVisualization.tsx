@@ -1,11 +1,19 @@
 import React from 'react';
-import { Box, Typography, Chip, useTheme } from '@mui/material';
+import {
+  Paper,
+  Typography,
+  Box,
+  Button,
+  Chip,
+  Grid,
+  Tooltip,
+} from '@mui/material';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import DeleteIcon from '@mui/icons-material/Delete';
+import MemoryIcon from '@mui/icons-material/Memory';
+import StorageIcon from '@mui/icons-material/Storage';
 import { motion } from 'framer-motion';
 import { Pod } from '../types';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import MemoryIcon from '@mui/icons-material/Memory';
-import RefreshIcon from '@mui/icons-material/Refresh';
 
 interface PodVisualizationProps {
   pod: Pod;
@@ -13,149 +21,109 @@ interface PodVisualizationProps {
   onRestart: () => void;
 }
 
-const PodVisualization: React.FC<PodVisualizationProps> = ({ pod, onDelete, onRestart }) => {
-  const theme = useTheme();
-  
-  // Format the creation date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+const PodVisualization: React.FC<PodVisualizationProps> = ({
+  pod,
+  onDelete,
+  onRestart,
+}) => {
+  // Format the creation time
+  const createdAt = new Date(pod.CreatedAt).toLocaleString();
+
+  // Get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Running':
+        return '#4caf50';
+      case 'Failed':
+        return '#f44336';
+      case 'Pending':
+        return '#ff9800';
+      case 'Restarting':
+        return '#2196f3';
+      default:
+        return '#9e9e9e';
+    }
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.3 }}
-      whileHover={{ scale: 1.02 }}
     >
-      <Box
+      <Paper
         sx={{
-          position: 'relative',
-          borderRadius: 3,
-          overflow: 'hidden',
+          p: 3,
           mb: 2,
-          background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
-          border: `1px solid ${theme.palette.primary.main}`,
-          boxShadow: `0 4px 20px rgba(0, 0, 0, 0.2)`,
-          '&:before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '4px',
-            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          },
+          background: 'rgba(30, 30, 30, 0.9)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 2,
         }}
       >
-        <Box
-          sx={{
-            p: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1.5,
-          }}
-        >
-          {/* Pod header */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <RocketLaunchIcon sx={{ color: theme.palette.primary.main }} />
-              <Typography variant="h6" component="div">
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
                 Pod {pod.ID.substring(0, 8)}
               </Typography>
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Chip
+                  label={pod.Status}
+                  size="small"
+                  sx={{
+                    bgcolor: getStatusColor(pod.Status),
+                    color: 'white',
+                  }}
+                />
+                <Tooltip title="CPU Cores Required">
+                  <Chip
+                    icon={<MemoryIcon />}
+                    label={`${pod.CPURequired} CPU`}
+                    size="small"
+                    color="primary"
+                  />
+                </Tooltip>
+              </Box>
             </Box>
-            <Chip
-              label={pod.Status}
-              color={
-                pod.Status.toLowerCase() === 'running'
-                  ? 'success'
-                  : pod.Status.toLowerCase() === 'failed'
-                  ? 'error'
-                  : pod.Status.toLowerCase() === 'restarting'
-                  ? 'warning'
-                  : 'info'
-              }
-              size="small"
-              sx={{ fontWeight: 'bold' }}
-            />
-          </Box>
 
-          {/* Pod details */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {/* CPU requirement */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <MemoryIcon sx={{ color: theme.palette.primary.main, fontSize: '1rem' }} />
-              <Typography variant="body2">
-                CPU Required: <strong>{pod.CPURequired} cores</strong>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <StorageIcon fontSize="small" />
+                Node: {pod.NodeID.substring(0, 8)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Created: {createdAt}
               </Typography>
             </Box>
+          </Grid>
 
-            {/* Node assignment */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Chip
-                label={`Node: ${pod.NodeID.substring(0, 8)}`}
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'flex-end', height: '100%' }}>
+              <Button
                 size="small"
-                sx={{
-                  backgroundColor: theme.palette.primary.dark,
-                  color: theme.palette.primary.contrastText,
-                }}
-              />
+                variant="outlined"
+                color="info"
+                startIcon={<RestartAltIcon />}
+                onClick={onRestart}
+                disabled={pod.Status === 'Restarting'}
+              >
+                Restart
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={onDelete}
+              >
+                Delete
+              </Button>
             </Box>
-
-            {/* Creation time */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AccessTimeIcon sx={{ color: theme.palette.primary.main, fontSize: '1rem' }} />
-              <Typography variant="body2" color="text.secondary">
-                Created: {formatDate(pod.CreatedAt)}
-              </Typography>
-            </Box>
-          </Box>
-
-          {/* Action buttons */}
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onRestart}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.palette.info.main}`,
-                color: theme.palette.info.main,
-                padding: '6px 12px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <RefreshIcon sx={{ fontSize: '1rem' }} />
-              Restart
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onDelete}
-              style={{
-                background: 'none',
-                border: `1px solid ${theme.palette.error.main}`,
-                color: theme.palette.error.main,
-                padding: '6px 12px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '0.875rem',
-              }}
-            >
-              Delete
-            </motion.button>
-          </Box>
-        </Box>
-      </Box>
+          </Grid>
+        </Grid>
+      </Paper>
     </motion.div>
   );
 };

@@ -97,6 +97,7 @@ function App() {
   const [tabValue, setTabValue] = useState(0);
   const [newNodeCores, setNewNodeCores] = useState<number>(2);
   const [newPodCores, setNewPodCores] = useState<number>(1);
+  const [schedulerAlgorithm, setSchedulerAlgorithm] = useState<string>('first-fit');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
@@ -286,6 +287,17 @@ function App() {
     });
   }, [fetchData, pods]);
 
+  const handleSchedulerChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      const newAlgorithm = event.target.value;
+      await api.setScheduler(newAlgorithm);
+      setSchedulerAlgorithm(newAlgorithm);
+      toast.success(`Scheduler algorithm updated to ${newAlgorithm}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update scheduler algorithm');
+    }
+  }, []);
+
   // Show loading state
   if (loading && Object.keys(nodes).length === 0) {
     return (
@@ -439,6 +451,23 @@ function App() {
                   InputProps={{ inputProps: { min: 1 } }}
                   sx={{ width: 200 }}
                 />
+                <TextField
+                  select
+                  label="Scheduling Algorithm"
+                  value={schedulerAlgorithm}
+                  onChange={handleSchedulerChange}
+                  sx={{ width: 200 }}
+                  SelectProps={{
+                    native: true,
+                  }}
+                >
+                  <option value="first-fit">First Fit</option>
+                  <option value="best-fit">Best Fit</option>
+                  <option value="worst-fit">Worst Fit</option>
+                  <option value="round-robin">Round Robin</option>
+                  <option value="most-pods">Most Pods</option>
+                  <option value="least-pods">Least Pods</option>
+                </TextField>
                 <Button 
                   variant="contained"
                   color="secondary"

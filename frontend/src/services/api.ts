@@ -165,6 +165,18 @@ const api = {
     } catch (error) {
       handleApiError(error, 'Failed to restart pod');
     }
+  },
+
+  // Scheduler operations
+  setScheduler: async (algorithm: string): Promise<void> => {
+    try {
+      await axiosInstance.post('/scheduler', { algorithm }, {
+        retry: 2,
+        timeout: 10000 // 10 second timeout for scheduler update
+      } as CustomAxiosConfig);
+    } catch (error) {
+      handleApiError(error, 'Failed to update scheduler algorithm');
+    }
   }
 };
 

@@ -403,7 +403,16 @@ func handleScheduler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Algorithm != "first-fit" && req.Algorithm != "best-fit" && req.Algorithm != "worst-fit" {
+	validAlgorithms := map[string]bool{
+		"first-fit":   true,
+		"best-fit":    true,
+		"worst-fit":   true,
+		"round-robin": true,
+		"most-pods":   true,
+		"least-pods":  true,
+	}
+
+	if !validAlgorithms[req.Algorithm] {
 		http.Error(w, "Invalid algorithm", http.StatusBadRequest)
 		return
 	}
@@ -424,6 +433,12 @@ func schedulePod(cpuRequired int) (string, error) {
 		return bestFitScheduling(cpuRequired)
 	case "worst-fit":
 		return worstFitScheduling(cpuRequired)
+	case "round-robin":
+		return roundRobinScheduling(cpuRequired)
+	case "most-pods":
+		return mostPodsScheduling(cpuRequired)
+	case "least-pods":
+		return leastPodsScheduling(cpuRequired)
 	default:
 		return firstFitScheduling(cpuRequired)
 	}
@@ -431,26 +446,32 @@ func schedulePod(cpuRequired int) (string, error) {
 
 func firstFitScheduling(cpuRequired int) (string, error) {
 	log.Printf("First-Fit scheduling: Looking for node with %d CPU cores", cpuRequired)
-	for _, node := range nodes {
+
+	// Simply iterate through nodes and return the first one with enough CPU
+	for nodeID, node := range nodes {
 		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
-			log.Printf("First-Fit: Selected node %s with %d available CPU cores", node.ID, node.AvailableCPU)
-			return node.ID, nil
+			log.Printf("First-Fit: Selected node %s with %d available CPU cores",
+				nodeID, node.AvailableCPU)
+			return nodeID, nil
 		}
 	}
+
 	log.Printf("First-Fit: No suitable node found for %d CPU cores", cpuRequired)
 	return "", fmt.Errorf("no available node with sufficient CPU")
 }
 
 func bestFitScheduling(cpuRequired int) (string, error) {
 	log.Printf("Best-Fit scheduling: Looking for node with %d CPU cores", cpuRequired)
+
 	var selectedNode string
 	minAvailableCPU := int(^uint(0) >> 1) // Max int
 
-	for _, node := range nodes {
+	// Find the node with minimum sufficient available CPU
+	for nodeID, node := range nodes {
 		if node.HealthStatus == "Healthy" &&
 			node.AvailableCPU >= cpuRequired &&
 			node.AvailableCPU < minAvailableCPU {
-			selectedNode = node.ID
+			selectedNode = nodeID
 			minAvailableCPU = node.AvailableCPU
 		}
 	}
@@ -460,20 +481,23 @@ func bestFitScheduling(cpuRequired int) (string, error) {
 		return "", fmt.Errorf("no available node with sufficient CPU")
 	}
 
-	log.Printf("Best-Fit: Selected node %s with %d available CPU cores", selectedNode, minAvailableCPU)
+	log.Printf("Best-Fit: Selected node %s with %d available CPU cores (closest fit)",
+		selectedNode, nodes[selectedNode].AvailableCPU)
 	return selectedNode, nil
 }
 
 func worstFitScheduling(cpuRequired int) (string, error) {
 	log.Printf("Worst-Fit scheduling: Looking for node with %d CPU cores", cpuRequired)
-	var selectedNode string
-	maxAvailableCPU := 0
 
-	for _, node := range nodes {
+	var selectedNode string
+	maxAvailableCPU := -1
+
+	// Find the node with maximum available CPU
+	for nodeID, node := range nodes {
 		if node.HealthStatus == "Healthy" &&
 			node.AvailableCPU >= cpuRequired &&
 			node.AvailableCPU > maxAvailableCPU {
-			selectedNode = node.ID
+			selectedNode = nodeID
 			maxAvailableCPU = node.AvailableCPU
 		}
 	}
@@ -483,7 +507,87 @@ func worstFitScheduling(cpuRequired int) (string, error) {
 		return "", fmt.Errorf("no available node with sufficient CPU")
 	}
 
-	log.Printf("Worst-Fit: Selected node %s with %d available CPU cores", selectedNode, maxAvailableCPU)
+	log.Printf("Worst-Fit: Selected node %s with %d available CPU cores (most available)",
+		selectedNode, nodes[selectedNode].AvailableCPU)
+	return selectedNode, nil
+}
+
+func roundRobinScheduling(cpuRequired int) (string, error) {
+	log.Printf("Round-Robin scheduling: Looking for node with %d CPU cores", cpuRequired)
+
+	// Get all healthy nodes with sufficient CPU
+	var eligibleNodes []string
+	for nodeID, node := range nodes {
+		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
+			eligibleNodes = append(eligibleNodes, nodeID)
+		}
+	}
+
+	if len(eligibleNodes) == 0 {
+		log.Printf("Round-Robin: No suitable node found for %d CPU cores", cpuRequired)
+		return "", fmt.Errorf("no available node with sufficient CPU")
+	}
+
+	// Use the total number of pods in the system as an index
+	totalPods := 0
+	for _, node := range nodes {
+		totalPods += len(node.Pods)
+	}
+
+	// Select node using round robin
+	selectedNode := eligibleNodes[totalPods%len(eligibleNodes)]
+	log.Printf("Round-Robin: Selected node %s with %d available CPU cores",
+		selectedNode, nodes[selectedNode].AvailableCPU)
+	return selectedNode, nil
+}
+
+func mostPodsScheduling(cpuRequired int) (string, error) {
+	log.Printf("Most-Pods scheduling: Looking for node with %d CPU cores", cpuRequired)
+
+	var selectedNode string
+	maxPods := -1
+
+	for nodeID, node := range nodes {
+		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
+			if len(node.Pods) > maxPods {
+				selectedNode = nodeID
+				maxPods = len(node.Pods)
+			}
+		}
+	}
+
+	if selectedNode == "" {
+		log.Printf("Most-Pods: No suitable node found for %d CPU cores", cpuRequired)
+		return "", fmt.Errorf("no available node with sufficient CPU")
+	}
+
+	log.Printf("Most-Pods: Selected node %s with %d pods",
+		selectedNode, len(nodes[selectedNode].Pods))
+	return selectedNode, nil
+}
+
+func leastPodsScheduling(cpuRequired int) (string, error) {
+	log.Printf("Least-Pods scheduling: Looking for node with %d CPU cores", cpuRequired)
+
+	var selectedNode string
+	minPods := int(^uint(0) >> 1) // Max int
+
+	for nodeID, node := range nodes {
+		if node.HealthStatus == "Healthy" && node.AvailableCPU >= cpuRequired {
+			if len(node.Pods) < minPods {
+				selectedNode = nodeID
+				minPods = len(node.Pods)
+			}
+		}
+	}
+
+	if selectedNode == "" {
+		log.Printf("Least-Pods: No suitable node found for %d CPU cores", cpuRequired)
+		return "", fmt.Errorf("no available node with sufficient CPU")
+	}
+
+	log.Printf("Least-Pods: Selected node %s with %d pods",
+		selectedNode, len(nodes[selectedNode].Pods))
 	return selectedNode, nil
 }
 
