@@ -464,7 +464,6 @@ function App() {
                   <option value="first-fit">First Fit</option>
                   <option value="best-fit">Best Fit</option>
                   <option value="worst-fit">Worst Fit</option>
-                  <option value="round-robin">Round Robin</option>
                 </TextField>
                 <Button 
                   variant="contained"
