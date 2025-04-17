@@ -183,7 +183,7 @@ func handleNodeOperations(w http.ResponseWriter, r *http.Request) {
 
 func handleStopNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 	nodesMu.Lock()
-	node, exists := nodes[nodeID]
+	_, exists := nodes[nodeID]
 	nodesMu.Unlock()
 
 	if !exists {
@@ -191,24 +191,35 @@ func handleStopNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
-	if len(node.Pods) > 0 {
-		http.Error(w, "Cannot stop node with running pods", http.StatusBadRequest)
+	// Check if node is already stopped
+	cmd := exec.Command("docker", "inspect", "-f", "{{.State.Running}}", "node-"+nodeID)
+	output, err := cmd.CombinedOutput()
+	if err == nil && strings.TrimSpace(string(output)) == "false" {
+		http.Error(w, "Node is already stopped", http.StatusBadRequest)
 		return
 	}
 
-	cmd := exec.Command("docker", "stop", "node-"+nodeID)
+	// Stop the node container
+	cmd = exec.Command("docker", "stop", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
 		log.Printf("Error stopping node %s: %v\n", nodeID, err)
-		http.Error(w, "Failed to stop node", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to stop node: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	nodesMu.Lock()
-	nodes[nodeID].HealthStatus = "Failed"
+	if node, ok := nodes[nodeID]; ok {
+		node.HealthStatus = "Stopped"
+		node.LastHeartbeat = time.Now()
+	}
 	nodesMu.Unlock()
 
-	log.Printf("Node %s stopped\n", nodeID)
+	fmt.Printf("%s%s[✓] %sNode %s stopped successfully%s\n", NEON_GREEN, BOLD, NEON_CYAN, nodeID[:8], NC)
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Node stopped successfully",
+		"nodeId":  nodeID,
+	})
 }
 
 func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
@@ -220,16 +231,26 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		return
 	}
 
+	// Check for running pods
 	if len(node.Pods) > 0 {
 		nodesMu.Unlock()
 		http.Error(w, "Cannot delete node with running pods", http.StatusBadRequest)
 		return
 	}
+	nodesMu.Unlock()
 
-	cmd := exec.Command("docker", "rm", "-f", "node-"+nodeID)
+	// Stop the container first
+	cmd := exec.Command("docker", "stop", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
-		log.Printf("Error deleting node %s: %v\n", nodeID, err)
-		http.Error(w, "Failed to delete node", http.StatusInternalServerError)
+		log.Printf("Error stopping node %s before deletion: %v\n", nodeID, err)
+		// Continue anyway as the container might already be stopped
+	}
+
+	// Remove the container
+	cmd = exec.Command("docker", "rm", "-f", "node-"+nodeID)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Error removing node container %s: %v\n", nodeID, err)
+		http.Error(w, fmt.Sprintf("Failed to delete node: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -237,7 +258,7 @@ func handleDeleteNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 	delete(nodes, nodeID)
 	nodesMu.Unlock()
 
-	log.Printf("Node %s deleted\n", nodeID)
+	fmt.Printf("%s%s[✓] %sNode %s deleted successfully%s\n", NEON_GREEN, BOLD, NEON_CYAN, nodeID[:8], NC)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Node deleted successfully",
@@ -605,21 +626,43 @@ func handleRestartNode(w http.ResponseWriter, r *http.Request, nodeID string) {
 		http.Error(w, "Node not found", http.StatusNotFound)
 		return
 	}
-	
-	cmd := exec.Command("docker", "start", "node-"+nodeID)
+
+	// Check if container exists
+	cmd := exec.Command("docker", "inspect", "node-"+nodeID)
 	if err := cmd.Run(); err != nil {
-		log.Printf("Error restarting node %s: %v\n", nodeID, err)
-		http.Error(w, "Failed to restart node", http.StatusInternalServerError)
+		log.Printf("Container for node %s not found: %v\n", nodeID, err)
+		http.Error(w, "Node container not found", http.StatusNotFound)
+		return
+	}
+
+	// Stop the container first
+	cmd = exec.Command("docker", "stop", "node-"+nodeID)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Error stopping node %s: %v\n", nodeID, err)
+		// Continue anyway as the container might already be stopped
+	}
+
+	// Start the container
+	cmd = exec.Command("docker", "start", "node-"+nodeID)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Error starting node %s: %v\n", nodeID, err)
+		http.Error(w, fmt.Sprintf("Failed to restart node: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	nodesMu.Lock()
-	nodes[nodeID].HealthStatus = "Healthy"
-	nodes[nodeID].LastHeartbeat = time.Now()
+	if node, ok := nodes[nodeID]; ok {
+		node.HealthStatus = "Starting"
+		node.LastHeartbeat = time.Now()
+	}
 	nodesMu.Unlock()
 
-	log.Printf("Node %s restarted\n", nodeID)
+	fmt.Printf("%s%s[✓] %sNode %s restarted successfully%s\n", NEON_GREEN, BOLD, NEON_CYAN, nodeID[:8], NC)
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Node restarted successfully",
+		"nodeId":  nodeID,
+	})
 }
 
 func removeFromSlice(slice []string, item string) []string {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -14,6 +14,11 @@ import {
   useTheme,
   CssBaseline,
   ThemeProvider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from '@mui/material';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -23,6 +28,7 @@ import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import StorageIcon from '@mui/icons-material/Storage';
 import MemoryIcon from '@mui/icons-material/Memory';
+import { debounce } from 'lodash';
 
 import { Node, Pod } from './types';
 import { api } from './services/api';
@@ -54,9 +60,33 @@ function TabPanel(props: TabPanelProps) {
       {value === index && (
         <Box sx={{ p: 3 }}>
           {children}
-    </Box>
+        </Box>
       )}
     </div>
+  );
+}
+
+// Confirmation dialog props
+interface ConfirmationDialogProps {
+  open: boolean;
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmationDialog({ open, title, message, onConfirm, onCancel }: ConfirmationDialogProps) {
+  return (
+    <Dialog open={open} onClose={onCancel}>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>
+        <DialogContentText>{message}</DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel} color="primary">Cancel</Button>
+        <Button onClick={onConfirm} color="error" variant="contained">Confirm</Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -70,98 +100,31 @@ function App() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
   
-  // Use the imported theme instead of useTheme
-  // const theme = useTheme();
-
-  // Fetch nodes and pods
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const nodesData = await api.getNodes();
-        setNodes(nodesData);
-        
-        // Extract pods from nodes
-        const podsMap: Record<string, Pod> = {};
-        Object.values(nodesData).forEach(node => {
-          node.Pods.forEach(podId => {
-            // Create a simple pod object for visualization
-            podsMap[podId] = {
-              ID: podId,
-              CPURequired: 1, // Default value
-              NodeID: node.ID,
-              Status: 'Running',
-              CreatedAt: new Date().toISOString()
-            };
-          });
-        });
-        setPods(podsMap);
-        
-        // Remove unused error state setting
-        // setError(null);
-      } catch (err: any) {
-        // Use snackbar instead of error state
-        setSnackbarMessage(err.message || 'Failed to fetch data');
-        setSnackbarSeverity('error');
-        setSnackbarOpen(true);
-        toast.error(err.message || 'Failed to fetch data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle tab change
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  // Handle add node
-  const handleAddNode = async () => {
+  // Memoized API calls
+  const fetchData = useCallback(async () => {
     try {
-      if (newNodeCores <= 0) {
-        toast.error('CPU cores must be a positive number');
-        return;
-      }
-      
-      await api.addNode({ cpuCores: newNodeCores });
-      toast.success(`Node added with ${newNodeCores} CPU cores`);
-      
-      // Refresh data
-      const nodesData = await api.getNodes();
-      setNodes(nodesData);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add node');
-    }
-  };
-
-  // Handle launch pod
-  const handleLaunchPod = async () => {
-    try {
-      if (newPodCores <= 0) {
-        toast.error('CPU cores must be a positive number');
-        return;
-      }
-      
-      await api.launchPod({ cpuRequired: newPodCores });
-      toast.success(`Pod launched with ${newPodCores} CPU cores`);
-      
-      // Refresh data
       const nodesData = await api.getNodes();
       setNodes(nodesData);
       
-      // Update pods
+      // Extract pods from nodes
       const podsMap: Record<string, Pod> = {};
       Object.values(nodesData).forEach(node => {
         node.Pods.forEach(podId => {
           podsMap[podId] = {
             ID: podId,
-            CPURequired: newPodCores,
+            CPURequired: 1,
             NodeID: node.ID,
             Status: 'Running',
             CreatedAt: new Date().toISOString()
@@ -170,116 +133,166 @@ function App() {
       });
       setPods(podsMap);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to launch pod');
+      setSnackbarMessage(err.message || 'Failed to fetch data');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      toast.error(err.message || 'Failed to fetch data');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  // Handle stop node
-  const handleStopNode = async (nodeId: string) => {
-    try {
-      await api.stopNode(nodeId);
-      toast.info(`Node ${nodeId.substring(0, 8)} stopped`);
-      
-      // Refresh data
-      const nodesData = await api.getNodes();
-      setNodes(nodesData);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to stop node');
-    }
-  };
+  // Debounced fetch data
+  const debouncedFetchData = useMemo(
+    () => debounce(fetchData, 1000),
+    [fetchData]
+  );
 
-  // Handle restart node
-  const handleRestartNode = async (nodeId: string) => {
-    try {
-      await api.restartNode(nodeId);
-      toast.info(`Node ${nodeId.substring(0, 8)} restarted`);
-      
-      // Refresh data
-      const nodesData = await api.getNodes();
-      setNodes(nodesData);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to restart node');
-    }
-  };
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(debouncedFetchData, 10000); // Reduced polling frequency to 10 seconds
+    return () => {
+      clearInterval(interval);
+      debouncedFetchData.cancel();
+    };
+  }, [debouncedFetchData]);
 
-  // Handle delete node
-  const handleDeleteNode = async (nodeId: string) => {
-    try {
-      await api.deleteNode(nodeId);
-      toast.success(`Node ${nodeId.substring(0, 8)} deleted`);
-      
-      // Refresh data
-      const nodesData = await api.getNodes();
-      setNodes(nodesData);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete node');
-    }
-  };
+  const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  }, []);
 
-  // Handle delete pod
-  const handleDeletePod = async (podId: string) => {
+  const handleAddNode = useCallback(async () => {
     try {
-      await api.deletePod(podId);
-      toast.success(`Pod ${podId.substring(0, 8)} deleted`);
-      
-      // Refresh data
-      const nodesData = await api.getNodes();
-      setNodes(nodesData);
-      
-      // Update pods
-      const updatedPods = { ...pods };
-      delete updatedPods[podId];
-      setPods(updatedPods);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete pod');
-    }
-  };
-
-  // Handle restart pod
-  const handleRestartPod = async (podId: string) => {
-    try {
-      await api.restartPod(podId);
-      toast.info(`Pod ${podId.substring(0, 8)} restart initiated`);
-      
-      // Update pod status immediately
-      const updatedPods = { ...pods };
-      if (updatedPods[podId]) {
-        updatedPods[podId].Status = 'Restarting';
-        setPods(updatedPods);
+      if (newNodeCores <= 0) {
+        toast.error('CPU cores must be a positive number');
+        return;
       }
       
-      // Refresh data after a delay to show the updated status
-      setTimeout(async () => {
-        const nodesData = await api.getNodes();
-        setNodes(nodesData);
-        
-        // Update pods
-        const podsMap: Record<string, Pod> = {};
-        Object.values(nodesData).forEach(node => {
-          node.Pods.forEach(podId => {
-            podsMap[podId] = {
-              ID: podId,
-              CPURequired: 1, // Default value
-              NodeID: node.ID,
-              Status: 'Running',
-              CreatedAt: new Date().toISOString()
-            };
-          });
-        });
-        setPods(podsMap);
-      }, 3000);
+      await api.addNode({ cpuCores: newNodeCores });
+      toast.success(`Node added with ${newNodeCores} CPU cores`);
+      await fetchData();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to restart pod');
+      toast.error(err.message || 'Failed to add node');
     }
-  };
+  }, [newNodeCores, fetchData]);
+
+  const handleLaunchPod = useCallback(async () => {
+    try {
+      if (newPodCores <= 0) {
+        toast.error('CPU cores must be a positive number');
+        return;
+      }
+      
+      await api.launchPod({ cpuRequired: newPodCores });
+      toast.success(`Pod launched with ${newPodCores} CPU cores`);
+      await fetchData();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to launch pod');
+    }
+  }, [newPodCores, fetchData]);
+
+  const handleStopNode = useCallback((nodeId: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Stop Node',
+      message: `Are you sure you want to stop node ${nodeId.substring(0, 8)}?`,
+      onConfirm: async () => {
+        try {
+          await api.stopNode(nodeId);
+          toast.info(`Node ${nodeId.substring(0, 8)} stopped`);
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to stop node');
+        }
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+      },
+    });
+  }, [fetchData]);
+
+  const handleRestartNode = useCallback((nodeId: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Restart Node',
+      message: `Are you sure you want to restart node ${nodeId.substring(0, 8)}?`,
+      onConfirm: async () => {
+        try {
+          await api.restartNode(nodeId);
+          toast.info(`Node ${nodeId.substring(0, 8)} restarted`);
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to restart node');
+        }
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+      },
+    });
+  }, [fetchData]);
+
+  const handleDeleteNode = useCallback((nodeId: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Node',
+      message: `Are you sure you want to delete node ${nodeId.substring(0, 8)}? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await api.deleteNode(nodeId);
+          toast.success(`Node ${nodeId.substring(0, 8)} deleted`);
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to delete node');
+        }
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+      },
+    });
+  }, [fetchData]);
+
+  const handleDeletePod = useCallback((podId: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Delete Pod',
+      message: `Are you sure you want to delete pod ${podId.substring(0, 8)}? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await api.deletePod(podId);
+          toast.success(`Pod ${podId.substring(0, 8)} deleted`);
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to delete pod');
+        }
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+      },
+    });
+  }, [fetchData]);
+
+  const handleRestartPod = useCallback((podId: string) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Restart Pod',
+      message: `Are you sure you want to restart pod ${podId.substring(0, 8)}?`,
+      onConfirm: async () => {
+        try {
+          await api.restartPod(podId);
+          toast.info(`Pod ${podId.substring(0, 8)} restart initiated`);
+          const updatedPods = { ...pods };
+          if (updatedPods[podId]) {
+            updatedPods[podId].Status = 'Restarting';
+            setPods(updatedPods);
+          }
+          await fetchData();
+        } catch (err: any) {
+          toast.error(err.message || 'Failed to restart pod');
+        }
+        setConfirmDialog(prev => ({ ...prev, open: false }));
+      },
+    });
+  }, [fetchData, pods]);
 
   // Show loading state
   if (loading && Object.keys(nodes).length === 0) {
-  return (
+    return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <Box
-              sx={{
+          sx={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
@@ -288,7 +301,7 @@ function App() {
           }}
         >
           <CircularProgress size={60} thickness={4} />
-                  </Box>
+        </Box>
       </ThemeProvider>
     );
   }
@@ -308,30 +321,30 @@ function App() {
               Kube-Sim
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="contained"
+              <Button
+                variant="contained"
                 color="primary"
                 startIcon={<AddCircleOutlineIcon />}
                 onClick={handleAddNode}
                 sx={{ fontWeight: 'bold' }}
-            >
-              Add Node
-            </Button>
-            <Button
-              variant="contained"
+              >
+                Add Node
+              </Button>
+              <Button
+                variant="contained"
                 color="secondary"
                 startIcon={<RocketLaunchIcon />}
                 onClick={handleLaunchPod}
                 sx={{ fontWeight: 'bold' }}
-            >
-              Launch Pod
-            </Button>
-          </Box>
+              >
+                Launch Pod
+              </Button>
+            </Box>
           </Box>
         </motion.div>
 
-              <Paper 
-                sx={{ 
+        <Paper 
+          sx={{ 
             mb: 4,
             background: 'rgba(18, 18, 18, 0.7)',
             backdropFilter: 'blur(10px)',
@@ -345,10 +358,10 @@ function App() {
             indicatorColor="primary"
             textColor="primary"
             variant="fullWidth"
-                sx={{ 
+            sx={{ 
               borderBottom: '1px solid rgba(63, 81, 181, 0.3)',
               '& .MuiTab-root': {
-                    fontWeight: 'bold',
+                fontWeight: 'bold',
                 py: 2,
               },
             }}
@@ -366,7 +379,7 @@ function App() {
             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
                 Add New Node
-                          </Typography>
+              </Typography>
               <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
                 <TextField
                   label="CPU Cores"
@@ -378,7 +391,7 @@ function App() {
                 />
                 <Button
                   variant="contained"
-                          color="primary"
+                  color="primary"
                   startIcon={<AddCircleOutlineIcon />}
                   onClick={handleAddNode}
                 >
@@ -389,7 +402,7 @@ function App() {
 
             <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
               Cluster Nodes
-                                </Typography>
+            </Typography>
             
             <AnimatedList>
               {Object.values(nodes).map((node) => (
@@ -399,8 +412,8 @@ function App() {
                   onStop={() => handleStopNode(node.ID)}
                   onRestart={() => handleRestartNode(node.ID)}
                   onDelete={() => handleDeleteNode(node.ID)}
-                                    />
-                                  ))}
+                />
+              ))}
             </AnimatedList>
             
             {Object.keys(nodes).length === 0 && (
@@ -408,7 +421,7 @@ function App() {
                 <Typography variant="h6" color="text.secondary">
                   No nodes available. Add a node to get started.
                 </Typography>
-                              </Box>
+              </Box>
             )}
           </TabPanel>
 
@@ -418,22 +431,22 @@ function App() {
                 Launch New Pod
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-            <TextField
-              label="CPU Cores"
-              type="number"
+                <TextField
+                  label="CPU Cores"
+                  type="number"
                   value={newPodCores}
                   onChange={(e) => setNewPodCores(parseInt(e.target.value) || 0)}
                   InputProps={{ inputProps: { min: 1 } }}
                   sx={{ width: 200 }}
                 />
-              <Button 
-              variant="contained"
+                <Button 
+                  variant="contained"
                   color="secondary"
                   startIcon={<RocketLaunchIcon />}
                   onClick={handleLaunchPod}
-            >
+                >
                   Launch Pod
-            </Button>
+                </Button>
               </Box>
             </Box>
 
@@ -462,6 +475,14 @@ function App() {
           </TabPanel>
         </Paper>
       </Container>
+      
+      <ConfirmationDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, open: false }))}
+      />
       
       <ToastContainer
         position="bottom-right"
